@@ -1,0 +1,45 @@
+name: Release Please
+
+on:
+  push:
+    branches: [master]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      pr_branch: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+
+  dispatch:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true' || needs.release-please.outputs.pr_branch != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.release-please.outputs.tag_name }}
+      PR_BRANCH: ${{ needs.release-please.outputs.pr_branch }}
+    steps:
+      - name: Publish the new release
+        if: needs.release-please.outputs.release_created == 'true'
+        run: gh workflow run publish.yml --ref "$TAG" -f tag="$TAG"
+      - name: Run CI on the release PR
+        if: needs.release-please.outputs.pr_branch != ''
+        run: gh workflow run ci.yml --ref "$PR_BRANCH"

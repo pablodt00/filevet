@@ -14,6 +14,8 @@ uv run pre-commit install
 uv run pytest
 ```
 
+The Makefile runs the same commands as CI, so you can reproduce a failing check locally: `make lint`, `make typecheck`, `make test`, `make build` and `make docker`. `make docker` needs Docker. It builds the image and scans a sample PDF with it, as the CI smoke test does.
+
 ## Project layout
 
 ```
