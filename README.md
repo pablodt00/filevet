@@ -2,7 +2,9 @@
 
 Self-hosted, open-source scanner that checks the files finance teams receive for security risks before anyone opens or ingests them.
 
+[![CI](https://github.com/pablodt00/filevet/actions/workflows/ci.yml/badge.svg)](https://github.com/pablodt00/filevet/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/filevet)](https://pypi.org/project/filevet/)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/pablodt00/filevet/badge)](https://scorecard.dev/viewer/?uri=github.com/pablodt00/filevet)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/pablodt00/filevet/blob/master/LICENSE)
 
 ## Why
