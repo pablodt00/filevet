@@ -42,4 +42,6 @@ jobs:
         run: gh workflow run publish.yml --ref "$TAG" -f tag="$TAG"
       - name: Run CI on the release PR
         if: needs.release-please.outputs.pr_branch != ''
-        run: gh workflow run ci.yml --ref "$PR_BRANCH"
+        run: |
+          gh workflow run ci.yml --ref "$PR_BRANCH"
+          gh workflow run security.yml --ref "$PR_BRANCH"
