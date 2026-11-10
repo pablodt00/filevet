@@ -1,0 +1,77 @@
+name: Bug report
+description: Something in filevet doesn't work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Found a security problem in filevet itself? Don't file it here. Use [private vulnerability reporting](https://github.com/pablodt00/filevet/security/advisories/new) instead.
+        A missed detection or a false positive isn't a vulnerability. For false positives, use the false positive template.
+  - type: input
+    id: version
+    attributes:
+      label: filevet version
+      description: Output of `filevet version`.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options:
+        - pip
+        - pipx
+        - uv
+        - Docker
+        - From source
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04, macOS 15, Windows 11
+    validations:
+      required: true
+  - type: input
+    id: file-type
+    attributes:
+      label: File type
+      placeholder: PDF, CSV, XLSX, camt.053, ZIP
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command you ran
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include any error message or traceback.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Report JSON
+      description: The relevant part of the JSON report. Remove anything sensitive.
+      render: json
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Samples
+      options:
+        - label: I did not attach real malware or customer data.
+          required: true
