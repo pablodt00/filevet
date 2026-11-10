@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,6 +29,7 @@ jobs:
           fail-on-severity: high
           allow-licenses: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, PSF-2.0, MPL-2.0
           allow-dependencies-licenses: pkg:pypi/colorama, pkg:pypi/nodeenv
+          comment-summary-in-pr: on-failure
 
   license-check:
     runs-on: ubuntu-latest
