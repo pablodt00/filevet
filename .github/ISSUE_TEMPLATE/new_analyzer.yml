@@ -1,0 +1,52 @@
+name: New analyzer
+description: Propose a new detection or analyzer.
+labels: [analyzer]
+body:
+  - type: textarea
+    id: threat
+    attributes:
+      label: Threat
+      description: What attack or risk should filevet detect?
+    validations:
+      required: true
+  - type: input
+    id: file-types
+    attributes:
+      label: Affected file types
+      placeholder: PDF, XLSX, pain.001
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Detection approach
+      description: What would the analyzer look for, and how?
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: CVEs, CWEs, research papers or write-ups.
+  - type: textarea
+    id: sample
+    attributes:
+      label: How to generate a safe test sample
+      description: Describe or script how to build a test case in code. Don't attach real malware.
+    validations:
+      required: true
+  - type: dropdown
+    id: fp-risk
+    attributes:
+      label: Expected false-positive risk
+      options:
+        - Low
+        - Medium
+        - High
+    validations:
+      required: true
+  - type: textarea
+    id: fp-notes
+    attributes:
+      label: False-positive notes
+      description: Which legitimate files might trigger it?

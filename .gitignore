@@ -1,5 +1,60 @@
+# Byte-compiled files
 __pycache__/
 *.py[cod]
-.venv/
+*$py.class
+
+# C extensions
+*.so
+
+# Packaging
 build/
 dist/
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+sdist/
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Tests and coverage
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Type checkers and linters
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# Docs builds
+site/
+docs/_build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Generated hostile test samples: never commit these
+tmp-samples/

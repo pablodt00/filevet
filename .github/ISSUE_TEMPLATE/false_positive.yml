@@ -1,0 +1,45 @@
+name: False positive
+description: filevet flagged a legitimate file.
+labels: [false-positive]
+body:
+  - type: input
+    id: rule-id
+    attributes:
+      label: Rule ID
+      placeholder: parser.csv_formula_injection
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: filevet version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: why-legitimate
+    attributes:
+      label: Why the file is legitimate
+      description: Where it comes from and why its content is expected.
+    validations:
+      required: true
+  - type: textarea
+    id: structure
+    attributes:
+      label: File structure
+      description: A sanitized description of the parts that triggered the rule, such as the producing software, a cell pattern or a PDF object. Don't paste real data.
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding JSON
+      description: The finding from the report. Remove anything sensitive.
+      render: json
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Samples
+      options:
+        - label: I did not attach real malware or customer data.
+          required: true
