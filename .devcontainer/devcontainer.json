@@ -1,0 +1,10 @@
+{
+  "name": "filevet",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pipx install uv && uv sync --frozen && uv run pre-commit install",
+  "customizations": {
+    "vscode": {
+      "extensions": ["charliermarsh.ruff", "ms-python.mypy-type-checker"]
+    }
+  }
+}

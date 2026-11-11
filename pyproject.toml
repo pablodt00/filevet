@@ -54,6 +54,7 @@ strict = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers"
+markers = ["requires_clamav: needs a running clamd at FILEVET_CLAMD"]
 
 [tool.coverage.run]
 branch = true
