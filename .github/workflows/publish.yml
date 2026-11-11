@@ -1,6 +1,8 @@
 name: Publish
 
 on:
+  push:
+    branches: [master]
   release:
     types: [published]
   workflow_dispatch:
@@ -12,7 +14,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.tag || github.event.release.tag_name }}
+  group: ${{ github.workflow }}-${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
 env:
   TAG: ${{ inputs.tag || github.event.release.tag_name }}
@@ -34,8 +36,12 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - id: version
         run: |
-          version="$(uv version --short)"
-          test "v$version" = "$TAG"
+          if [ -n "$TAG" ]; then
+            version="$(uv version --short)"
+            test "v$version" = "$TAG"
+          else
+            version="$(uv version --bump patch --bump dev="$GITHUB_RUN_NUMBER" --frozen --short)"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - run: make build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -45,6 +51,7 @@ jobs:
 
   provenance:
     needs: build
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -62,6 +69,7 @@ jobs:
 
   publish-testpypi:
     needs: build
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -99,7 +107,7 @@ jobs:
           exit 1
 
   publish-pypi:
-    needs: [build, provenance, smoke-testpypi]
+    needs: [build, provenance]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -118,6 +126,7 @@ jobs:
 
   publish-image:
     needs: build
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
