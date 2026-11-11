@@ -14,7 +14,7 @@ Fintechs and finance teams take in files from outside every day: invoices, bank 
 ## Status
 
 > [!WARNING]
-> filevet is pre-1.0 and not usable yet. The 0.0.1 release on PyPI only reserves the name. Until 1.0, the CLI, report format and Python API may change between minor versions.
+> filevet is pre-1.0 and not usable yet. The 0.0.x releases on PyPI only reserve the name and test the release pipeline: `filevet scan` prints a report but doesn't analyze anything yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
 
 ## Quickstart
 

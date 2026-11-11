@@ -1,6 +1,6 @@
 [project]
 name = "filevet"
-version = "0.0.1"
+version = "0.0.2"
 description = "Self-hosted scanner that inspects financial files for security risks before they are opened or ingested. Name reserved, under active development."
 readme = "README.md"
 license = "Apache-2.0"
