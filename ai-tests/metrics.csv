@@ -1,0 +1,2 @@
+date,scenario,variants,detection_rate,false_positive_rate,crashes
+2026-11-11,csv-formula-injection-variants,6,0.000,,0

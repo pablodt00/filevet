@@ -1,0 +1,11 @@
+id: csv-formula-injection-variants
+threat: CSV/formula injection in a bank export
+formats: [csv, xlsx]
+generators: [csv_rows, xlsx]
+goal: Produce cells that would execute a formula in Excel/LibreOffice while evading naive "starts with =" checks.
+techniques_allowed: [leading whitespace, tab/CR prefixes, unicode lookalikes, quoted fields, DDE payloads, HYPERLINK]
+expected:
+  must_find: [parser.csv_formula_injection]
+  min_severity: high
+  verdict: block
+budget: { variants: 15, max_file_kb: 512 }

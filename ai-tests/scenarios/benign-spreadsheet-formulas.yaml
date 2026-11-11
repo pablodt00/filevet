@@ -1,0 +1,10 @@
+id: benign-spreadsheet-formulas
+threat: None. Spreadsheets that use formulas for legitimate work
+formats: [xlsx, csv]
+generators: [xlsx, csv_rows]
+goal: Produce workbooks and exports whose formulas or formula-like text are normal business content.
+techniques_allowed: [SUM and VLOOKUP formulas, cross-sheet references, phone numbers starting with +, amounts starting with - or +, text that mentions "=" mid-cell]
+expected:
+  must_find: []
+  verdict: pass
+budget: { variants: 12, max_file_kb: 512 }

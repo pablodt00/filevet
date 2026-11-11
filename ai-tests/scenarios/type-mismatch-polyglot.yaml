@@ -1,0 +1,11 @@
+id: type-mismatch-polyglot
+threat: Extension/content mismatch and polyglot files
+formats: [pdf, zip, png, html, csv]
+generators: [disguised]
+goal: Produce files whose extension lies about their content, or that are valid as more than one type.
+techniques_allowed: [wrong extension, double extension, content appended after a valid file, archive appended to a PDF]
+expected:
+  must_find: [basic.type_mismatch, parser.polyglot]
+  min_severity: medium
+  verdict: review
+budget: { variants: 12, max_file_kb: 256 }

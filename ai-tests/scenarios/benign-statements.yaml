@@ -1,0 +1,10 @@
+id: benign-statements
+threat: None. Legitimate bank statements and invoices that must not raise alerts
+formats: [csv, xml, pdf]
+generators: [bank_statement_csv, csv_rows, camt053, pdf]
+goal: Produce realistic legitimate files with unusual but valid structure that a careless rule might flag.
+techniques_allowed: [negative amounts, accented and non-Latin names, very long statements, many camt.053 entries, quoted fields with commas, semicolon delimiters, plain-text invoices]
+expected:
+  must_find: []
+  verdict: pass
+budget: { variants: 15, max_file_kb: 2048 }

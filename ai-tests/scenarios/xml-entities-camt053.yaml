@@ -1,0 +1,11 @@
+id: xml-entities-camt053
+threat: XXE and entity expansion in a camt.053 bank statement
+formats: [xml]
+generators: [camt053]
+goal: Smuggle a DTD, an external entity or an entity expansion into a camt.053 file so that a careless XML parser would resolve it.
+techniques_allowed: [internal DTD subset, external entity to a non-existent local path, parameter entities, nested entity expansion kept small, UTF-16 encoding, XInclude]
+expected:
+  must_find: [parser.xml_unsafe]
+  min_severity: high
+  verdict: block
+budget: { variants: 10, max_file_kb: 256 }

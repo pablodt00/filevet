@@ -108,6 +108,8 @@ Slash commands in `.claude/commands/`:
 | `/add-corpus-case <threat>` | Writes a generator (never a binary) for a synthetic benign or malicious case, plus its expected findings |
 | `/review-analyzer <path>` | Checks an analyzer against the contracts, limits, sandbox and security rules, false-positive risk and test coverage |
 | `/triage-fp <issue-number>` | Reproduces a false-positive report with a synthetic sample and proposes a rule fix plus a regression test |
+| `/ai-test [scenario-id\|all]` | Generates synthetic hostile variants for a scenario, scans them and turns misses into regression tests. See [ai-tests/README.md](ai-tests/README.md) |
+| `/ai-test-benign [scenario-id\|all]` | Hunts for false positives with realistic legitimate files |
 | `/release-check` | Checks version, changelog, README and docs are consistent before the release PR is merged |
 
 The `security-reviewer` subagent in `.claude/agents/` does a read-only review of a diff for unsafe parsing, missing limits, sandbox escapes and secrets. Run it before opening a PR that touches parsers.
