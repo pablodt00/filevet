@@ -59,3 +59,6 @@ docs/_build/
 
 # Generated hostile test samples: never commit these
 tmp-samples/
+
+# Personal Claude Code overrides
+.claude/settings.local.json

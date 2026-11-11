@@ -90,6 +90,26 @@ Add `!` after the type, or a `BREAKING CHANGE:` footer, for breaking changes.
 - CI must pass before merging.
 - PRs are squash-merged, so the PR title becomes the commit message and must follow Conventional Commits.
 
-## AI-assisted contributions
+## Using Claude in this repo
 
-You're welcome to use AI tools. You're still the author: you need to understand the code you submit, have run its tests, and be able to answer questions about it in review. The rules Claude Code follows in this repository are in [CLAUDE.md](CLAUDE.md).
+You're welcome to use AI tools. You're still the author: you need to understand the code you submit, have run its tests, and be able to answer questions about it in review. A human stays accountable for every merged change.
+
+The repository is set up for [Claude Code](https://code.claude.com/docs):
+
+- [CLAUDE.md](CLAUDE.md) has the commands, the architecture map, the conventions and the security rules Claude follows here.
+- `.claude/settings.json` sets which commands Claude may run without asking and which are blocked, such as network fetches and publishing. Its hooks format the Python files Claude edits and refuse writes that contain the EICAR string or executable bytes. Put personal overrides in `.claude/settings.local.json`, which git ignores.
+- `.devcontainer/` gives you a ready environment for Codespaces and other dev container tools.
+
+Slash commands in `.claude/commands/`:
+
+| Command | What it does |
+| --- | --- |
+| `/new-analyzer <family.name> <file-types>` | Scaffolds an analyzer, registers it, and adds its unit tests, a corpus generator stub and a README row |
+| `/add-corpus-case <threat>` | Writes a generator (never a binary) for a synthetic benign or malicious case, plus its expected findings |
+| `/review-analyzer <path>` | Checks an analyzer against the contracts, limits, sandbox and security rules, false-positive risk and test coverage |
+| `/triage-fp <issue-number>` | Reproduces a false-positive report with a synthetic sample and proposes a rule fix plus a regression test |
+| `/release-check` | Checks version, changelog, README and docs are consistent before the release PR is merged |
+
+The `security-reviewer` subagent in `.claude/agents/` does a read-only review of a diff for unsafe parsing, missing limits, sandbox escapes and secrets. Run it before opening a PR that touches parsers.
+
+On GitHub, maintainers and collaborators can mention `@claude` in an issue, a PR comment or a review to get an answer or a change. Mentions from anyone else are ignored. PRs that touch `src/filevet/analyzers/` or `src/filevet/core/` also get an automatic Claude review focused on the security rules. It doesn't run on drafts, Dependabot PRs or PRs from forks.
