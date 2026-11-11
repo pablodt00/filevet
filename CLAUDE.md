@@ -32,15 +32,17 @@ ClamAV tests run only when `FILEVET_CLAMD` is set to the address of a running `c
 
 ```
 src/filevet/
-  core/          contracts, pipeline, type detection, limits, report (report.py exists today)
-  analyzers/     one subpackage per family: basic/, malware/, parser/, format/
-  interfaces/    CLI and later the REST API (the CLI is in src/filevet/cli.py for now)
-  policies/      default verdict policy
+  core/          contracts, pipeline, type detection, limits, report
+  analyzers/     one subpackage per family: basic/ today, later malware/, parser/, format/
+  interfaces/    CLI (cli.py) and later the REST API
+  policies/      default verdict policy (planned, Phase 3)
 tests/
   unit/          tests for single modules
   integration/   end-to-end scans
   corpus/        generators/ for the synthetic corpus, one expected.yaml per case
                  regressions/ for cases found by AI tests
+  plugin/        a separate example package, used to test entry point discovery
+  fakes.py       misbehaving analyzers for pipeline tests
 ai-tests/        AI test scenarios, runner and metrics
 docs/            scope, architecture, threat model, ADRs
 ```

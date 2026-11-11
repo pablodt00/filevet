@@ -122,6 +122,7 @@ def disguised(out: Path, *, name: str, parts: list[str]) -> Path:
         "html": b"<html><body>Invoice 2026-0001</body></html>\n",
         "csv": b"date,amount\n2026-01-02,10.00\n",
         "zip": _zip_bytes(),
+        "pe_stub": (b"M" + b"Z").ljust(128, b"\0"),
     }
     return _write(out, name, b"".join(blobs[part] for part in parts))
 

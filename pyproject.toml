@@ -11,16 +11,24 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Topic :: Security",
 ]
+dependencies = [
+    "pydantic>=2",
+    "rich>=15.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/pablodt00/filevet"
 Issues = "https://github.com/pablodt00/filevet/issues"
 
 [project.scripts]
-filevet = "filevet.cli:main"
+filevet = "filevet.interfaces.cli:main"
+
+[project.entry-points."filevet.analyzers"]
+"basic.type_mismatch" = "filevet.analyzers.basic.type_mismatch:TypeMismatch"
 
 [dependency-groups]
 dev = [
+  "hypothesis>=6.170.15",
   "mypy>=2.4.1",
   "pre-commit>=4.7.0",
   "pytest>=9.2.0",
@@ -38,7 +46,7 @@ build-backend = "hatchling.build"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "PTH"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S603"]
@@ -57,6 +65,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "--strict-markers"
 markers = ["requires_clamav: needs a running clamd at FILEVET_CLAMD"]
+filterwarnings = ["ignore:This process .* is multi-threaded, use of fork:DeprecationWarning"]
 
 [tool.coverage.run]
 branch = true

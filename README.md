@@ -14,7 +14,7 @@ Fintechs and finance teams take in files from outside every day: invoices, bank 
 ## Status
 
 > [!WARNING]
-> filevet is pre-1.0 and not usable yet. The 0.0.x releases on PyPI only reserve the name and test the release pipeline: `filevet scan` prints a report but doesn't analyze anything yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
+> filevet is pre-1.0 and not usable yet. The 0.0.x releases on PyPI test the pipeline end to end. So far the only analyzer is `basic.type_mismatch`. Until 1.0, the CLI, report format and Python API may change between minor versions.
 
 ## Quickstart
 
@@ -37,35 +37,55 @@ docker run --rm --network none --read-only --tmpfs /tmp -v "$PWD:/in:ro" ghcr.io
 ## Example
 
 ```sh
-filevet scan invoice.pdf --format json
+filevet scan invoice.pdf
 ```
 
-Trimmed output (the format may still change):
+Trimmed output from a file named `invoice.pdf` that's really a Windows executable (the format may still change):
 
 ```json
 {
-  "filevet_version": "0.1.0",
-  "artifact": {
-    "name": "invoice.pdf",
-    "sha256": "9f2c…e41a",
-    "declared_type": "application/pdf",
-    "detected_type": "application/pdf"
-  },
-  "findings": [
+  "filevet_version": "0.0.2",
+  "artifacts": [
     {
-      "rule_id": "malware.pdf_active_content",
-      "severity": "high",
-      "confidence": 0.9,
-      "title": "PDF runs JavaScript when opened",
-      "location": { "object": 12 },
-      "evidence": "/OpenAction << /S /JavaScript /JS (app.launchURL…) >>",
-      "references": ["https://cwe.mitre.org/data/definitions/829.html"]
+      "id": "1bf01f46-66b9-4b57-a40c-031d8d71615f",
+      "name": "invoice.pdf",
+      "sha256": "9f2c…e41a",
+      "declared_type": "pdf",
+      "detected_type": "pe",
+      "depth": 0
     }
   ],
-  "summary": { "critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0 },
+  "findings": [
+    {
+      "rule_id": "basic.type_mismatch",
+      "title": "File content does not match its extension",
+      "severity": "critical",
+      "confidence": 1.0,
+      "evidence": "invoice.pdf",
+      "references": ["https://cwe.mitre.org/data/definitions/434.html"],
+      "analyzer": "basic.type_mismatch/0.1.0"
+    }
+  ],
+  "summary": { "critical": 1, "high": 1, "medium": 0, "low": 0, "info": 0 },
   "verdict": "block"
 }
 ```
+
+`--format table` prints the same report as a table for people. The full report format is in [docs/schema/report.schema.json](https://github.com/pablodt00/filevet/blob/master/docs/schema/report.schema.json), and `filevet schema` prints it too.
+
+Other commands: `filevet analyzers` lists the registered analyzers, and `filevet version` prints the version.
+
+### Exit codes
+
+CI jobs can act on the exit code of `filevet scan` without parsing the report.
+
+| Code | Meaning |
+| --- | --- |
+| `0` | No findings of `medium` or higher (verdict `pass`) |
+| `1` | At least one `medium` finding (verdict `review`) |
+| `2` | At least one `high` or `critical` finding (verdict `block`) |
+| `3` | Usage error, including a missing input file or one over the size limit |
+| `4` | Internal error in filevet |
 
 ## What it checks
 
@@ -73,7 +93,7 @@ Planned for v0.1:
 
 | Analyzer | File types | Threats covered |
 | --- | --- | --- |
-| `basic.type_mismatch` | All | Extension doesn't match content, executables disguised as documents |
+| `basic.type_mismatch` | All | Extension doesn't match content, executables disguised as documents, any executable or script |
 | `malware.clamav` (optional) | All | Known malware signatures, via a ClamAV sidecar |
 | `malware.yara` | All | Suspicious structure, using bundled or your own YARA rules |
 | `malware.pdf_active_content` | PDF | JavaScript, launch actions, auto-actions, embedded files, obfuscated names |

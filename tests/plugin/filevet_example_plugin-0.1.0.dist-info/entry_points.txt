@@ -1,0 +1,2 @@
+[filevet.analyzers]
+example.seen_text = filevet_example_plugin:SeenText
