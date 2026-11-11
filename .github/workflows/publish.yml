@@ -99,7 +99,7 @@ jobs:
       - name: Install from TestPyPI
         run: |
           for _ in 1 2 3 4 5 6; do
-            if uvx --no-cache --default-index https://test.pypi.org/simple/ --from "filevet==$VERSION" filevet --version; then
+            if uvx --no-cache --default-index https://test.pypi.org/simple/ --from "filevet==$VERSION" filevet version; then
               exit 0
             fi
             sleep 20

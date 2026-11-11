@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from filevet.core.report import scan
+from filevet.core.pipeline import scan
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -34,7 +34,7 @@ def _scan_child(path: Path, conn: Connection) -> None:
     resource.setrlimit(resource.RLIMIT_AS, (MEMORY_BYTES, MEMORY_BYTES))
     resource.setrlimit(resource.RLIMIT_CPU, (TIMEOUT_S, TIMEOUT_S))
     try:
-        conn.send(("ok", scan(path)))
+        conn.send(("ok", scan(path).model_dump(mode="json")))
     except Exception as exc:
         conn.send(("crash", type(exc).__name__))
 

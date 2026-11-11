@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 import yaml
 
-from filevet.core.report import scan
+from filevet.core.pipeline import scan
 from tests.corpus import generators
 from tests.corpus.judge import judge
 
@@ -21,4 +21,4 @@ def _param(case: dict[str, Any]) -> Any:
 def test_regression(case: dict[str, Any], sample_dir: Path) -> None:
     scenario = yaml.safe_load((SCENARIOS / f"{case['scenario']}.yaml").read_text())
     path = getattr(generators, case["generator"])(sample_dir, **case["args"])
-    assert judge(scan(path), scenario["expected"])
+    assert judge(scan(path).model_dump(mode="json"), scenario["expected"])
