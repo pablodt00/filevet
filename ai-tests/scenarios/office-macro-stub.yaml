@@ -1,0 +1,11 @@
+id: office-macro-stub
+threat: Office macro presence
+formats: [xlsx, xlsm]
+generators: [xlsx]
+goal: Ship a workbook with a VBA project part (a stub with no working code), disguised as an ordinary statement.
+techniques_allowed: [macro-enabled workbook named .xlsx, VBA part with the content type still declared, statement-like cell content]
+expected:
+  must_find: [malware.office_macros]
+  min_severity: high
+  verdict: block
+budget: { variants: 8, max_file_kb: 256 }

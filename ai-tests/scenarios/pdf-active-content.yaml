@@ -1,0 +1,11 @@
+id: pdf-active-content
+threat: PDF with JavaScript or launch actions
+formats: [pdf]
+generators: [pdf]
+goal: Make a PDF that runs JavaScript or a launch action when opened, using only inert payloads such as app.alert() and paths that don't exist.
+techniques_allowed: [OpenAction JavaScript, page open action, launch action, escaped strings, name obfuscation added to the generator]
+expected:
+  must_find: [malware.pdf_active_content]
+  min_severity: high
+  verdict: block
+budget: { variants: 10, max_file_kb: 256 }

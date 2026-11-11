@@ -62,3 +62,7 @@ tmp-samples/
 
 # Personal Claude Code overrides
 .claude/settings.local.json
+
+# AI test reports and plans
+ai-tests/reports/
+ai-tests/plans/

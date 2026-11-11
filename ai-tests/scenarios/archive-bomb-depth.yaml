@@ -1,0 +1,11 @@
+id: archive-bomb-depth
+threat: Zip bomb and nested-archive depth
+formats: [zip]
+generators: [nested_zip]
+goal: Build archives that expand far beyond their size or nest deeper than the recursion limits, within the generator's safe expansion cap.
+techniques_allowed: [high compression ratio, deep nesting, misleading inner names, archives renamed as documents]
+expected:
+  must_find: [parser.archive_bomb]
+  min_severity: high
+  verdict: block
+budget: { variants: 10, max_file_kb: 1024 }

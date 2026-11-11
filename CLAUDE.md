@@ -23,6 +23,7 @@ The project is pre-1.0. Parts of the layout below are still planned. Check what 
 | Build sdist and wheel | `make build` |
 | Docker image and smoke test | `make docker` (needs Docker) |
 | Run the CLI on a sample | `mkdir -p tmp-samples && printf '%%PDF-1.4\n%%%%EOF\n' > tmp-samples/benign.pdf && uv run filevet scan tmp-samples/benign.pdf` |
+| AI test run for one scenario | `/ai-test <scenario-id>`, or the runner alone: `uv run python -I ai-tests/run.py --scenario <id> --plan <plan.json>` (see [ai-tests/README.md](ai-tests/README.md)) |
 | Tests that need ClamAV | `uv run pytest -m requires_clamav` (skipped unless `clamd` is reachable, see below) |
 
 ClamAV tests run only when `FILEVET_CLAMD` is set to the address of a running `clamd`, for example `unix:/run/clamav/clamd.sock` or `tcp:localhost:3310`. Without it they are skipped, so the suite needs no network and no ClamAV.
@@ -39,6 +40,8 @@ tests/
   unit/          tests for single modules
   integration/   end-to-end scans
   corpus/        generators/ for the synthetic corpus, one expected.yaml per case
+                 regressions/ for cases found by AI tests
+ai-tests/        AI test scenarios, runner and metrics
 docs/            scope, architecture, threat model, ADRs
 ```
 
@@ -78,6 +81,7 @@ Use `/new-analyzer <family.name> <file-types>`. By hand:
 - Never download, fetch or commit real malware, real customer data or real financial data. Fake names and fake IBANs with valid checksums only.
 - Hostile test files are created only by the generators in `tests/corpus/generators/`, written under `tmp-samples/` (git-ignored), and never committed. Commit the generator, not its output.
 - Never put the EICAR string or executable bytes in a committed file. Generators build them at run time from parts.
+- Claude creates samples only by calling or extending the generators in `tests/corpus/generators/`, never by writing sample bytes itself.
 - Never open, execute or render a sample file outside the test sandbox. No external viewers, no `subprocess` on samples.
 - Parse XML with `defusedxml` only. Never use `eval`, `exec`, `pickle`, `shell=True`, or unbounded reads of untrusted input. Every read of a sample has a size limit.
 - Run any Python that touches samples with `python -I`.
