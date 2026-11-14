@@ -1,0 +1,12 @@
+generator: zip_entries
+args:
+  entries:
+    kyc/passport.jpg:
+    - jpeg
+    kyc/notes.txt:
+    - csv
+must_find: []
+must_not_find:
+- parser.archive_bomb
+- parser.path_traversal
+max_severity: info

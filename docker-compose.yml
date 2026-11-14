@@ -1,0 +1,28 @@
+# Scan a file:  docker compose run --rm filevet scan /in/statement.pdf
+# With ClamAV:  docker compose --profile clamav up -d clamav
+#               docker compose run --rm filevet scan /in/statement.pdf
+services:
+  filevet:
+    build: .
+    image: ghcr.io/pablodt00/filevet
+    network_mode: none
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      FILEVET_CLAMD: unix:/run/clamav/clamd.sock
+    volumes:
+      - ./:/in:ro
+      - clamd-socket:/run/clamav
+    depends_on:
+      clamav:
+        condition: service_healthy
+        required: false
+
+  clamav:
+    image: clamav/clamav:stable
+    profiles: [clamav]
+    volumes:
+      - clamd-socket:/tmp
+
+volumes:
+  clamd-socket:

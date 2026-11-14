@@ -1,0 +1,5 @@
+generator: docx
+args:
+  remote_template: https://example.invalid/template.dotm
+must_find:
+- malware.office_macros

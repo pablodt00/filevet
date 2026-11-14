@@ -1,0 +1,5 @@
+generator: pdf
+args:
+  javascript: app.alert('filevet')
+must_find:
+- malware.pdf_active_content

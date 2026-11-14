@@ -1,0 +1,7 @@
+generator: csv_rows
+args:
+  rows:
+  - - note
+  - - =HYPERLINK("https://example.invalid","Pay")
+must_find:
+- parser.csv_formula_injection

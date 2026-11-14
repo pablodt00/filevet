@@ -1,0 +1,6 @@
+generator: pdf
+args:
+  javascript: app.alert(1)
+  object_stream: true
+must_find:
+- malware.pdf_active_content

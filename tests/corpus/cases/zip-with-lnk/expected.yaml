@@ -1,0 +1,7 @@
+generator: zip_entries
+args:
+  entries:
+    statement.pdf.lnk:
+    - lnk_stub
+must_find:
+- malware.embedded_executable

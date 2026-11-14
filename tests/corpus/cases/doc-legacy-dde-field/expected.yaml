@@ -1,0 +1,6 @@
+generator: ole
+args:
+  name: letter.doc
+  dde: '"C:\missing\filevet.exe" "x"'
+must_find:
+- malware.office_macros

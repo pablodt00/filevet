@@ -108,11 +108,13 @@ def test_analyzers_lists_builtin_and_plugins(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.syspath_prepend(str(PLUGIN))
+    monkeypatch.delenv("FILEVET_CLAMD", raising=False)
     assert cli.main(["analyzers"]) == 0
-    assert capsys.readouterr().out.splitlines() == [
-        "basic.type_mismatch 0.1.0: all",
-        "example.seen_text 0.1.0: text",
-    ]
+    lines = capsys.readouterr().out.splitlines()
+    assert "basic.type_mismatch 0.1.0: all" in lines
+    assert "malware.clamav 0.1.0: none" in lines
+    assert "malware.pdf_active_content 0.1.0: pdf" in lines
+    assert "example.seen_text 0.1.0: text" in lines
 
 
 def test_schema(capsys: pytest.CaptureFixture[str]) -> None:

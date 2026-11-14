@@ -1,0 +1,7 @@
+generator: bank_statement_csv
+args:
+  rows: 100
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

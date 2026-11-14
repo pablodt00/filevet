@@ -1,0 +1,7 @@
+generator: disguised
+args:
+  name: upload.csv
+  parts: []
+must_find: []
+must_not_find: []
+max_severity: info

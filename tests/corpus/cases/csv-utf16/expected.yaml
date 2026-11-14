@@ -1,0 +1,12 @@
+generator: csv_rows
+args:
+  rows:
+  - - Name
+    - Amount
+  - - Søren Ærø
+    - '-5.00'
+  encoding: utf-16
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

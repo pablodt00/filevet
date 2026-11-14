@@ -1,0 +1,7 @@
+generator: pdf
+args:
+  open_page: true
+must_find: []
+must_not_find:
+- malware.pdf_active_content
+max_severity: info

@@ -1,0 +1,7 @@
+generator: pdf
+args:
+  embedded:
+    invoice.exe:
+    - pe_stub
+must_find:
+- malware.embedded_executable

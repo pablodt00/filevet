@@ -1,0 +1,12 @@
+generator: pdf
+args:
+  name: statement.pdf
+  text: 'Statement January 2026
+
+    Opening 1,000.00
+
+    Closing 875.00'
+must_find: []
+must_not_find:
+- malware.pdf_active_content
+max_severity: info

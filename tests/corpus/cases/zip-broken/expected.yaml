@@ -1,0 +1,7 @@
+generator: disguised
+args:
+  name: archive.zip
+  parts:
+  - zip_broken
+must_find:
+- parser.malformed

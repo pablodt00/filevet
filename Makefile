@@ -24,5 +24,5 @@ docker:
 smoke:
 	mkdir -p $(SAMPLES)
 	printf '%%PDF-1.4\n%%%%EOF\n' > $(SAMPLES)/benign.pdf
-	docker run --rm --network none -v "$(CURDIR)/$(SAMPLES):/samples:ro" $(IMAGE) scan /samples/benign.pdf > $(SAMPLES)/report.json
+	docker run --rm --network none --read-only --tmpfs /tmp -v "$(CURDIR)/$(SAMPLES):/samples:ro" $(IMAGE) scan /samples/benign.pdf > $(SAMPLES)/report.json
 	python3 -c 'import json, sys; assert isinstance(json.load(open(sys.argv[1]))["findings"], list)' $(SAMPLES)/report.json

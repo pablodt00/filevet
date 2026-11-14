@@ -1,0 +1,7 @@
+generator: docx
+args:
+  text: Dear customer, please find the invoice attached.
+must_find: []
+must_not_find:
+- malware.office_macros
+max_severity: info

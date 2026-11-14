@@ -1,0 +1,8 @@
+generator: ole
+args:
+  name: letter.doc
+  package:
+    invoice.pdf.lnk:
+    - lnk_stub
+must_find:
+- malware.embedded_executable

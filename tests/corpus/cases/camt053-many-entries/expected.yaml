@@ -1,0 +1,8 @@
+generator: camt053
+args:
+  entries: 200
+must_find: []
+must_not_find:
+- parser.xml_unsafe
+- format.iso20022_schema
+max_severity: info

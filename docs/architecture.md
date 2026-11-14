@@ -1,6 +1,6 @@
 # Architecture
 
-This is the design as built in Phase 0. The code is in `src/filevet/core/`.
+This is the design as built so far. The pipeline and contracts are in `src/filevet/core/`, the analyzers in `src/filevet/analyzers/`.
 
 ## Pipeline
 
@@ -58,6 +58,27 @@ Every analyzer run gets its own forked process with a wall-clock timeout (30 s b
 Logs hold hashes, rule IDs and timings only, never file contents.
 
 This is isolation v0. Phase 4 replaces it with a `Sandbox` interface and stronger backends: no network, read-only filesystem, seccomp and dropped privileges.
+
+## Built-in analyzers
+
+Analyzers are grouped in families that match their rule ID prefix: `basic`, `malware`, `parser` and `format`. Some of them also act as format handlers and return children for the pipeline to scan:
+
+| Analyzer | Extracts |
+| --- | --- |
+| `parser.archive` | ZIP entries, including the parts of OOXML files, within the ratio, size and count limits |
+| `malware.pdf_active_content` | PDF embedded files |
+| `malware.office_macros` | OLE `Ole10Native` packages |
+| `parser.polyglot` | The second file hidden inside a polyglot |
+
+So a macro in an `.xlsm` is found in two steps: `parser.archive` extracts `xl/vbaProject.bin`, and `malware.office_macros` reads its VBA when that child comes back through the pipeline. Analyzers read their input with `Artifact.read(limit)`, so every read is bounded. Libraries and the reasons for them are in [ADR 10](adr/0010-format-parsing-dependencies.md).
+
+Three environment variables configure them:
+
+| Variable | Effect |
+| --- | --- |
+| `FILEVET_CLAMD` | Address of `clamd`, `unix:/path/clamd.sock` or `tcp:host:port`. Without it `malware.clamav` doesn't run |
+| `FILEVET_YARA_RULES` | Extra directories of `.yar` files, separated by `:`, loaded next to the bundled rules |
+| `FILEVET_XSD_DIR` | Directory of ISO 20022 XSDs named `<message>.xsd`, for example `camt.053.001.08.xsd` |
 
 ## Plugin model
 

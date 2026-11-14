@@ -1,0 +1,8 @@
+generator: camt053
+args:
+  remittance_xml: Müller &amp; Søn GmbH &lt;Rechnung 42&gt;
+must_find: []
+must_not_find:
+- parser.xml_unsafe
+- format.iso20022_schema
+max_severity: info

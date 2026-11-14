@@ -1,0 +1,7 @@
+generator: zip_entries
+args:
+  entries:
+    /tmp/filevet.csv:
+    - csv
+must_find:
+- parser.path_traversal

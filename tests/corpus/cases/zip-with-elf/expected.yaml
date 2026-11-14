@@ -1,0 +1,7 @@
+generator: zip_entries
+args:
+  entries:
+    report:
+    - elf_stub
+must_find:
+- malware.embedded_executable

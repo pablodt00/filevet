@@ -1,0 +1,5 @@
+generator: pdf
+args:
+  bad_startxref: true
+must_find:
+- parser.malformed

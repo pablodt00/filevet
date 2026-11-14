@@ -1,0 +1,16 @@
+generator: xlsx
+args:
+  cells:
+  - - Date
+    - Description
+    - Amount
+  - - '2026-01-02'
+    - Rent
+    - '1200.00'
+  embedded:
+    notes.csv:
+    - csv
+must_find: []
+must_not_find:
+- malware.embedded_executable
+max_severity: info

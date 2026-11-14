@@ -1,0 +1,7 @@
+generator: ole
+args:
+  name: legacy.xls
+  vba: "Sub Workbook_Open()\r\n    Set o = CreateObject(\"WScript.Shell\")\r\nEnd\
+    \ Sub\r\n"
+must_find:
+- malware.office_macros

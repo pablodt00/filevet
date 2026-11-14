@@ -1,0 +1,16 @@
+generator: csv_rows
+args:
+  rows:
+  - - name
+    - phone
+    - fee
+  - - Max Muster
+    - +49 30 1234567
+    - '-'
+  - - Erika Muster
+    - (+1) 555 0100
+    - +2.5%
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

@@ -1,0 +1,12 @@
+generator: csv_rows
+args:
+  rows:
+  - - date
+    - amount
+  - - '2026-01-02'
+    - '-10.00'
+  quote_all: true
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

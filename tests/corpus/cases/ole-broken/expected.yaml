@@ -1,0 +1,7 @@
+generator: disguised
+args:
+  name: legacy.xls
+  parts:
+  - ole_broken
+must_find:
+- parser.malformed

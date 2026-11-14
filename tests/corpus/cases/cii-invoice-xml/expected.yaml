@@ -1,0 +1,9 @@
+generator: disguised
+args:
+  name: invoice.xml
+  parts:
+  - xml
+must_find: []
+must_not_find:
+- parser.xml_unsafe
+max_severity: info

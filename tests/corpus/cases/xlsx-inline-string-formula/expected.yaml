@@ -1,0 +1,7 @@
+generator: xlsx
+args:
+  cells:
+  - - Note
+    - ' =cmd|'' /c calc''!A0'
+must_find:
+- parser.csv_formula_injection

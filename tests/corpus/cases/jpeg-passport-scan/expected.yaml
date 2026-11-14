@@ -1,0 +1,9 @@
+generator: disguised
+args:
+  name: passport.jpg
+  parts:
+  - jpeg
+must_find: []
+must_not_find:
+- parser.polyglot
+max_severity: info

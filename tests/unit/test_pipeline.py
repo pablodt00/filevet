@@ -143,7 +143,7 @@ def test_never_raises_on_arbitrary_bytes(data: bytes) -> None:
 def test_third_party_analyzer_is_discovered(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.syspath_prepend(str(PLUGIN))
     names = [a.name for a in load_analyzers()]
-    assert names == ["basic.type_mismatch", "example.seen_text"]
+    assert {"basic.type_mismatch", "parser.archive", "example.seen_text"} <= set(names)
 
     report = scan(b"plain text\n")
     assert "example.seen_text" in {f.rule_id for f in report.findings}

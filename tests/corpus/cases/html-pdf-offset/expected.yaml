@@ -1,0 +1,9 @@
+generator: disguised
+args:
+  name: invoice.pdf
+  parts:
+  - html
+  - pdf
+must_find:
+- parser.polyglot
+- basic.type_mismatch

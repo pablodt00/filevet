@@ -1,0 +1,6 @@
+generator: camt053
+args:
+  remittance_xml: <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="file:///etc/hostname"
+    parse="text"/>
+must_find:
+- parser.xml_unsafe

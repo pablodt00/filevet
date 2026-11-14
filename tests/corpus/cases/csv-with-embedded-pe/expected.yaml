@@ -1,0 +1,8 @@
+generator: disguised
+args:
+  name: export.csv
+  parts:
+  - csv
+  - pe
+must_find:
+- malware.yara

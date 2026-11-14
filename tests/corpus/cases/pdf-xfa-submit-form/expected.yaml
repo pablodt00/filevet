@@ -1,0 +1,6 @@
+generator: pdf
+args:
+  xfa: true
+  submit_form: https://example.invalid/c
+must_find:
+- malware.pdf_active_content

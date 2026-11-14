@@ -1,0 +1,14 @@
+generator: xlsx
+args:
+  cells:
+  - - Date
+    - Description
+    - Amount
+  - - '2026-01-02'
+    - Rent
+    - '1200.00'
+  embedded:
+    invoice.exe:
+    - pe_stub
+must_find:
+- malware.embedded_executable

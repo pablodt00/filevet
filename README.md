@@ -14,7 +14,7 @@ Fintechs and finance teams take in files from outside every day: invoices, bank 
 ## Status
 
 > [!WARNING]
-> filevet is pre-1.0 and not ready for production. `filevet scan` runs end to end, but the only analyzer so far is `basic.type_mismatch`. Until 1.0, the CLI, report format and Python API may change between minor versions.
+> filevet is pre-1.0. It detects active content, known malware and parser attacks in PDF, CSV, XLSX and legacy Office files, ISO 20022 XML and ZIP archives, but it hasn't been tested against real-world traffic yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
 
 ## Quickstart
 
@@ -31,6 +31,15 @@ With Docker, without network access and with the file mounted read-only:
 ```sh
 docker run --rm --network none --read-only --tmpfs /tmp -v "$PWD:/in:ro" ghcr.io/pablodt00/filevet scan /in/statement.pdf
 ```
+
+To add ClamAV signature scanning, use the Compose file, which runs `clamd` as a sidecar and shares its socket with filevet:
+
+```sh
+docker compose --profile clamav up -d clamav
+docker compose run --rm filevet scan /in/statement.pdf
+```
+
+filevet alone needs about 200 MB of RAM. With ClamAV, plan for 1 to 2 GB more for its signature database.
 
 ## Example
 
@@ -87,27 +96,43 @@ CI jobs can act on the exit code of `filevet scan` without parsing the report.
 
 ## What it checks
 
-`basic.type_mismatch` is available now. The others are planned for the v0.1 milestone.
+Each rule has a page in [docs/rules/](https://github.com/pablodt00/filevet/tree/master/docs/rules) that explains what it means, why it matters for finance files, how to fix the file and when it can be a false positive.
 
-| Analyzer | File types | Threats covered |
-| --- | --- | --- |
-| `basic.type_mismatch` | All | Extension doesn't match content, executables disguised as documents, any executable or script |
-| `malware.clamav` (optional) | All | Known malware signatures, via a ClamAV sidecar |
-| `malware.yara` | All | Suspicious structure, using bundled or your own YARA rules |
-| `malware.pdf_active_content` | PDF | JavaScript, launch actions, auto-actions, embedded files, obfuscated names |
-| `malware.office_macros` | XLSX, XLS, DOC | VBA and XLM macros, auto-exec triggers, DDE, remote template injection |
-| `malware.embedded_executable` | All containers | PE, ELF, Mach-O, scripts or `.lnk` files inside another file |
-| `parser.csv_formula_injection` | CSV, XLSX | Cells that spreadsheet apps will run as formulas, DDE payloads |
-| `parser.xml_unsafe` | ISO 20022 XML | DTDs, XXE, entity expansion, XInclude, deep nesting |
-| `parser.archive_bomb` | ZIP, OOXML | Extreme compression ratios, deep nesting, overlapping entries, quines |
-| `parser.path_traversal` | ZIP | `../` entries, absolute paths, drive letters, symlinks |
-| `parser.polyglot` | All | Files that are valid as more than one type |
-| `parser.malformed` | All | Broken or parser-repaired structure, a common evasion sign |
-| `format.iso20022_schema` | ISO 20022 XML | Messages that don't validate against the official XSD |
+| Rule ID | File types | Detects | Severity | References |
+| --- | --- | --- | --- | --- |
+| `basic.type_mismatch` | All | Extension doesn't match the content | medium, critical for disguised executables | [CWE-434](https://cwe.mitre.org/data/definitions/434.html) |
+| `basic.executable` | All | Programs, scripts and `.lnk` shortcuts | high | [CWE-434](https://cwe.mitre.org/data/definitions/434.html) |
+| `malware.clamav` (optional) | All | Known malware signatures, via a ClamAV sidecar | critical | [ADR 5](https://github.com/pablodt00/filevet/blob/master/docs/adr/0005-clamav-optional-sidecar.md) |
+| `malware.yara` | All | Bundled or your own YARA rules: embedded PE and `.lnk` headers, DDE commands, XXE, PDF auto-run | from the rule, medium by default | [YARA](https://virustotal.github.io/yara/) |
+| `malware.pdf_active_content` | PDF | JavaScript, launch actions, auto-actions, rich media, XFA, form submission, URIs, embedded files, hex-obfuscated names, filter chains | low to critical | [CWE-829](https://cwe.mitre.org/data/definitions/829.html) |
+| `malware.office_macros` | XLSX, XLSM, DOCX, DOCM, XLS, DOC | VBA, auto-run macros, `Shell`/`CreateObject`/`URLDownloadToFile`, XLM macro sheets, DDE, remote template injection | medium to critical | [ATT&CK T1137](https://attack.mitre.org/techniques/T1137/), [T1221](https://attack.mitre.org/techniques/T1221/), CVE-2017-0199 |
+| `malware.embedded_executable` | All containers | PE, ELF, Mach-O, scripts or `.lnk` files inside another file | critical | [ATT&CK T1027.009](https://attack.mitre.org/techniques/T1027/009/) |
+| `parser.csv_formula_injection` | CSV, XLSX | Cells that spreadsheet apps run as formulas, including hidden prefixes, full-width characters and DDE payloads | medium, high | [OWASP](https://owasp.org/www-community/attacks/CSV_Injection), [CWE-1236](https://cwe.mitre.org/data/definitions/1236.html) |
+| `parser.xml_unsafe` | XML, ISO 20022 | DTDs, external and parameter entities, entity expansion, XInclude, deep nesting | medium to critical | [CWE-611](https://cwe.mitre.org/data/definitions/611.html), [CWE-776](https://cwe.mitre.org/data/definitions/776.html) |
+| `parser.archive_bomb` | ZIP, OOXML | Extreme compression ratios, nested archives, too many entries, overlapping entries, quines | high, critical | [CWE-409](https://cwe.mitre.org/data/definitions/409.html) |
+| `parser.path_traversal` | ZIP, OOXML | `../` entries, absolute paths, drive letters, symbolic links | high | [CWE-22](https://cwe.mitre.org/data/definitions/22.html) |
+| `parser.polyglot` | All | Files that are valid as more than one type | medium | [CWE-434](https://cwe.mitre.org/data/definitions/434.html) |
+| `parser.malformed` | All | Broken structure that viewers would repair, each in its own way | medium | |
+| `format.iso20022_schema` | ISO 20022 XML | camt.052/053/054, pain.001/008 and pacs.008 messages that don't match their XSD | low | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
+
+### Configuration
+
+| Variable | Effect |
+| --- | --- |
+| `FILEVET_CLAMD` | Address of `clamd`: `unix:/path/clamd.sock` or `tcp:host:port`. Without it, ClamAV isn't used |
+| `FILEVET_YARA_RULES` | Directories of extra `.yar` files, separated by `:` |
+| `FILEVET_XSD_DIR` | Directory of ISO 20022 XSDs, one `<message>.xsd` per version, such as `camt.053.001.08.xsd` |
+
+The synthetic test corpus in `tests/corpus/cases/` has one case per threat and per legitimate look-alike. `uv run pytest tests/corpus` prints a detection matrix showing which rules fire on which case.
 
 ## Limitations
 
 - filevet never declares a file safe. It reports what it checked and what it found, and no scanner catches everything.
+- PDFs are scanned as raw objects. Content hidden behind encryption, or behind filters other than Flate, isn't decoded.
+- 7z, RAR and gzip archives are detected but not extracted, so their contents aren't scanned.
+- VBA is found by its source text. P-code-only projects (VBA stomping) can get past it.
+- No ISO 20022 XSDs ship with filevet yet, so schema validation only runs once you supply them.
+- The rules are tested against a synthetic corpus, not real-world malware.
 - It doesn't replace antivirus or EDR, email security, or human review of high-value payments.
 - v0.1 doesn't detect document tampering or inconsistent financial data (planned for v0.2), or content aimed at AI pipelines (planned for v0.3).
 - It doesn't analyze network traffic, attribute malware to families, or store scanned files.

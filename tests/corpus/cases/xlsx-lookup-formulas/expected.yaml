@@ -1,0 +1,13 @@
+generator: xlsx
+args:
+  cells:
+  - - Code
+    - Rate
+  - - EUR
+    - '1.0'
+  - - Rate
+    - =VLOOKUP(A2,A2:B2,2)
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

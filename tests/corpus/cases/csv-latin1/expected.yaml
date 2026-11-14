@@ -1,0 +1,13 @@
+generator: csv_rows
+args:
+  rows:
+  - - Name
+    - Betrag
+  - - Müller & Söhne
+    - -5,00 EUR
+  encoding: latin-1
+  delimiter: ;
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

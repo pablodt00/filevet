@@ -1,0 +1,9 @@
+generator: disguised
+args:
+  name: scan.png
+  parts:
+  - png
+must_find: []
+must_not_find:
+- parser.polyglot
+max_severity: info

@@ -1,7 +1,8 @@
+import re
 from pathlib import PurePath
 
 SNIFF_BYTES = 512
-EXECUTABLE = frozenset({"pe", "elf", "macho", "script"})
+EXECUTABLE = frozenset({"pe", "elf", "macho", "script", "lnk"})
 
 _SIGNATURES = (
     (b"%PDF-", "pdf"),
@@ -22,6 +23,7 @@ _SIGNATURES = (
     (b"\xcf\xfa\xed\xfe", "macho"),
     (b"\xca\xfe\xba\xbe", "macho"),
     (b"#!", "script"),
+    (b"L\x00\x00\x00\x01\x14\x02\x00", "lnk"),
 )
 
 _EXTENSIONS = {
@@ -43,12 +45,17 @@ _EXTENSIONS = {
         "elf": "so elf",
         "macho": "dylib",
         "script": "sh ps1 bat cmd vbs js hta wsf py",
+        "lnk": "lnk",
     }.items()
     for ext in exts.split()
 }
 
 _ALLOWED_CONTROL = frozenset(b"\t\n\r\f")
 _ALSO_FITS = {"script": {"text"}, "html": {"xml"}}
+
+_ISO20022 = re.compile(
+    r"urn:iso:std:iso:20022:tech:xsd:((?:camt\.05[234]|pain\.00[18]|pacs\.008)\.\d{3}\.\d{2})"
+)
 
 TYPES = tuple(
     sorted({label for _, label in _SIGNATURES} | {"xml", "html", "text", "empty", "unknown"})
@@ -69,6 +76,8 @@ def detect_type(head: bytes) -> str:
     for magic, label in _SIGNATURES:
         if head.startswith(magic):
             return label
+    if head.startswith((b"\xff\xfe", b"\xfe\xff")):
+        head = head.decode("utf-16", "replace").encode()
     if any(b < 0x20 and b not in _ALLOWED_CONTROL for b in head):
         return "unknown"
     text = head.removeprefix(b"\xef\xbb\xbf").lstrip().lower()
@@ -77,3 +86,8 @@ def detect_type(head: bytes) -> str:
     if text.startswith(b"<"):
         return "xml"
     return "text"
+
+
+def iso20022_message(text: str) -> str | None:
+    match = _ISO20022.search(text)
+    return match[1] if match else None

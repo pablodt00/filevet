@@ -1,0 +1,5 @@
+generator: pdf
+args:
+  launch: C:\missing\filevet.exe
+must_find:
+- malware.pdf_active_content

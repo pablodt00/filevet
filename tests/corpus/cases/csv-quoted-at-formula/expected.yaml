@@ -1,0 +1,8 @@
+generator: csv_rows
+args:
+  rows:
+  - - note
+  - - '  @SUM(1)*cmd|'' /C calc''!A0'
+  quote_all: true
+must_find:
+- parser.csv_formula_injection
