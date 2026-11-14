@@ -22,10 +22,26 @@ class AnalyzerResult(BaseModel):
     children: list[ExtractedFile] = []
 
 
+class Party(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    ibans: list[str] = []
+    producers: list[str] = []
+
+
+class Expected(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    parties: dict[str, Party] = {}
+    trust_roots: list[str] = []
+
+
 class AnalysisContext(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     limits: Limits
+    expected: Expected = Expected()
+    mask: bool = True
 
 
 class Analyzer(Protocol):

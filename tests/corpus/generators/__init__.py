@@ -3,11 +3,23 @@ import binascii
 import csv
 import io
 import itertools
+import re
 import struct
 import zipfile
 import zlib
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from xml.sax.saxutils import escape
+
+from asn1crypto import keys
+from asn1crypto import x509 as asn1_x509
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
+from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+from pyhanko.sign import signers
+from pyhanko_certvalidator.registry import SimpleCertificateStore
 
 __all__ = [
     "bank_statement_csv",
@@ -21,6 +33,7 @@ __all__ = [
     "nested_zip",
     "ole",
     "pdf",
+    "signed_pdf",
     "xlsx",
     "zip_entries",
 ]
@@ -98,34 +111,56 @@ def camt053(
     msg_id: str = "STMT-0001",
     created: str = "2026-01-31T18:00:00",
     nesting: int = 0,
+    iban: str | None = None,
+    creditor_iban: str | None = None,
+    opening: str | None = None,
+    closing: str | None = None,
+    booked: str = "2026-01-15",
+    value_date: str | None = None,
+    end_to_end: str | None = None,
+    control_sum: str | None = None,
 ) -> Path:
     remittance = "<Nst>" * nesting + remittance_xml + "</Nst>" * nesting
+    account = f"<IBAN>{iban or fake_iban(1)}</IBAN>"
+    refs = [
+        f"<EndToEndId>{end_to_end.format(i=i)}</EndToEndId>" if end_to_end else ""
+        for i in range(entries)
+    ]
     if message.startswith("camt"):
-        entry = (
+        value = f"<ValDt><Dt>{value_date}</Dt></ValDt>" if value_date else ""
+        balances = "".join(
+            f"<Bal><Tp><CdOrPrtry><Cd>{code}</Cd></CdOrPrtry></Tp>"
+            f'<Amt Ccy="EUR">{amount}</Amt><CdtDbtInd>CRDT</CdtDbtInd></Bal>'
+            for code, amount in (("OPBD", opening), ("CLBD", closing))
+            if amount is not None
+        )
+        body = "".join(
             '<Ntry><Amt Ccy="EUR">125.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts><Cd>BOOK</Cd></Sts>'
-            "<BookgDt><Dt>2026-01-15</Dt></BookgDt><NtryDtls><TxDtls><RmtInf>"
+            f"<BookgDt><Dt>{booked}</Dt></BookgDt>{value}<NtryDtls><TxDtls>"
+            f"{'<Refs>' + ref + '</Refs>' if ref else ''}<RmtInf>"
             f"<Ustrd>{remittance}</Ustrd></RmtInf></TxDtls></NtryDtls></Ntry>"
+            for ref in refs
         )
-        body = (
-            f"<Stmt><Id>{msg_id}-01</Id><Acct><Id><IBAN>{fake_iban(1)}</IBAN></Id></Acct>"
-            f"{entry * entries}</Stmt>"
-        )
+        body = f"<Stmt><Id>{msg_id}-01</Id><Acct><Id>{account}</Id></Acct>{balances}{body}</Stmt>"
     else:
-        tx = (
-            '<CdtTrfTxInf><Amt><InstdAmt Ccy="EUR">125.00</InstdAmt></Amt>'
+        body = "".join(
+            f"<CdtTrfTxInf>{'<PmtId>' + ref + '</PmtId>' if ref else ''}"
+            '<Amt><InstdAmt Ccy="EUR">125.00</InstdAmt></Amt>'
             "<Cdtr><Nm>Muster Lieferant GmbH</Nm></Cdtr>"
-            f"<CdtrAcct><Id><IBAN>{fake_iban(2)}</IBAN></Id></CdtrAcct>"
+            f"<CdtrAcct><Id><IBAN>{creditor_iban or fake_iban(2)}</IBAN></Id></CdtrAcct>"
             f"<RmtInf><Ustrd>{remittance}</Ustrd></RmtInf></CdtTrfTxInf>"
+            for ref in refs
         )
         body = (
             f"<PmtInf><PmtInfId>{msg_id}-01</PmtInfId><Dbtr><Nm>Beispiel AG</Nm></Dbtr>"
-            f"<DbtrAcct><Id><IBAN>{fake_iban(1)}</IBAN></Id></DbtrAcct>{tx * entries}</PmtInf>"
+            f"<DbtrAcct><Id>{account}</Id></DbtrAcct>{body}</PmtInf>"
         )
+    control = f"<NbOfTxs>{entries}</NbOfTxs><CtrlSum>{control_sum}</CtrlSum>" if control_sum else ""
     root = _ISO_ROOTS[message[:8]]
     xml = (
         f'<?xml version="1.0" encoding="{encoding}"?>\n{doctype}\n'
         f'<Document xmlns="urn:iso:std:iso:20022:tech:xsd:{message}"><{root}>'
-        f"<GrpHdr><MsgId>{msg_id}</MsgId><CreDtTm>{created}</CreDtTm></GrpHdr>"
+        f"<GrpHdr><MsgId>{msg_id}</MsgId><CreDtTm>{created}</CreDtTm>{control}</GrpHdr>"
         f"{body}</{root}></Document>\n"
     )
     return _write(out, name, xml.encode(encoding))
@@ -144,6 +179,7 @@ def iso20022_xsd(out: Path, *, message: str = "camt.053.001.08") -> Path:
             <xs:minLength value="1"/><xs:maxLength value="35"/>
           </xs:restriction></xs:simpleType></xs:element>
           <xs:element name="CreDtTm" type="xs:dateTime"/>
+          <xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence></xs:complexType></xs:element>
         <xs:any processContents="skip" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence></xs:complexType>
@@ -453,6 +489,16 @@ def pdf(
     filter_chain: bool = False,
     truncated: bool = False,
     bad_startxref: bool = False,
+    producer: str | None = None,
+    created: str | None = None,
+    modified: str | None = None,
+    xmp_producer: str | None = None,
+    cover_line: int | None = None,
+    cover_text: str | None = None,
+    retyped_line: int | None = None,
+    updates: list[str] | None = None,
+    update_producer: str | None = None,
+    form_fill: str | None = None,
 ) -> Path:
     objects: list[bytes | None] = [b""] * 5
 
@@ -498,9 +544,25 @@ def pdf(
         catalog += f" /Names << /EmbeddedFiles << /Names [{' '.join(names)}] >> >>"
     if annots:
         page_extra += f" /Annots [{' '.join(annots)}]"
+    info = None
+    if producer or created or modified:
+        fields = (("Producer", producer), ("CreationDate", created), ("ModDate", modified))
+        info = add("<< " + " ".join(f"/{k} {_pdf_string(v)}" for k, v in fields if v) + " >>")
+    if xmp_producer is not None:
+        xmp = (
+            '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf='
+            '"http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description '
+            f'xmlns:pdf="http://ns.adobe.com/pdf/1.3/" pdf:Producer="{escape(xmp_producer)}"/>'
+            "</rdf:RDF></x:xmpmeta>"
+        )
+        ref = add(_pdf_stream("/Type /Metadata /Subtype /XML", xmp.encode()))
+        catalog += f" /Metadata {ref} 0 R"
+    fonts = "/F1 4 0 R"
+    if retyped_line is not None:
+        ref = add("<< /Type /Font /Subtype /Type1 /BaseFont /GHIJKL+Helvetica >>")
+        fonts += f" /F2 {ref} 0 R"
 
-    lines = " T* ".join(f"{_pdf_string(line)} Tj" for line in text.split("\n"))
-    content = f"BT /F1 12 Tf 14 TL 72 720 Td {lines} ET".encode("latin-1")
+    content = _pdf_content(text, cover_line, cover_text, retyped_line)
     if filter_chain:
         encoded = binascii.hexlify(base64.a85encode(zlib.compress(content)) + b"~>") + b">"
         chain = "/Filter [/ASCIIHexDecode /ASCII85Decode /FlateDecode]"
@@ -512,9 +574,11 @@ def pdf(
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         (
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
-            f"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R{page_extra} >>"
+            f"/Resources << /Font << {fonts} >> >> /Contents 5 0 R{page_extra} >>"
         ).encode(),
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /"
+        + (b"ABCDEF+" if retyped_line is not None else b"")
+        + b"Helvetica >>",
     ]
     body, offsets = b"%PDF-1.7\n", list[int | None]()
     for number, obj in enumerate(objects, 1):
@@ -534,9 +598,129 @@ def pdf(
         "0000000000 65535 f \n" if offset is None else f"{offset:010d} 00000 n \n"
         for offset in offsets
     ).encode()
-    body += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n".encode()
+    info_ref = f" /Info {info} 0 R" if info else ""
+    body += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R{info_ref} >>\n".encode()
     body += f"startxref\n{xref + 7 if bad_startxref else xref}\n%%EOF\n".encode()
+    for update in updates or []:
+        changed = {5: _pdf_stream("", _pdf_content(update, None, None, None))}
+        if update_producer:
+            changed[len(objects) + 1] = f"<< /Producer {_pdf_string(update_producer)} >>".encode()
+        body = _pdf_update(body, changed, len(objects) + 1 if update_producer else info)
+    if form_fill is not None:
+        widget = (
+            "<< /Type /Annot /Subtype /Widget /FT /Tx /T (Reference) /Rect [72 600 300 620] "
+            f"/P 3 0 R /V {_pdf_string(form_fill)} >>"
+        )
+        page = objects[2] or b""
+        changed = {
+            1: (objects[0] or b"")[:-2] + b"/AcroForm << /Fields [99 0 R] >> >>",
+            3: page[:-2] + b"/Annots [99 0 R] >>",
+            99: widget.encode("latin-1"),
+        }
+        body = _pdf_update(body, changed, info)
     return _write(out, name, body)
+
+
+def _pdf_content(
+    text: str, cover_line: int | None, cover_text: str | None, retyped_line: int | None
+) -> bytes:
+    lines = " T* ".join(
+        f"/F2 12 Tf {_pdf_string(line)} Tj /F1 12 Tf"
+        if i == retyped_line
+        else f"{_pdf_string(line)} Tj"
+        for i, line in enumerate(text.split("\n"))
+    )
+    content = f"BT /F1 12 Tf 14 TL 72 720 Td {lines} ET"
+    if cover_line is not None:
+        y = 720 - 14 * cover_line
+        content += f" 1 1 1 rg 70 {y - 3} 300 14 re f"
+        if cover_text is not None:
+            content += f" 0 0 0 rg BT /F1 12 Tf 72 {y} Td {_pdf_string(cover_text)} Tj ET"
+    return content.encode("latin-1")
+
+
+def _pdf_update(body: bytes, objects: dict[int, bytes], info: int | None) -> bytes:
+    prev = int(re.findall(rb"startxref\s+(\d+)", body)[-1])
+    size = max(int(re.findall(rb"/Size\s+(\d+)", body)[-1]), max(objects) + 1)
+    offsets = {}
+    for number, obj in sorted(objects.items()):
+        offsets[number] = len(body)
+        body += f"{number} 0 obj\n".encode() + obj + b"\nendobj\n"
+    xref = len(body)
+    body += b"xref\n" + b"".join(
+        f"{number} 1\n{offset:010d} 00000 n \n".encode() for number, offset in offsets.items()
+    )
+    info_ref = f" /Info {info} 0 R" if info else ""
+    trailer = f"<< /Size {size} /Root 1 0 R /Prev {prev}{info_ref} >>"
+    return body + f"trailer\n{trailer}\nstartxref\n{xref}\n%%EOF\n".encode()
+
+
+def _test_certificate() -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
+    key = ec.generate_private_key(ec.SECP256R1())
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "filevet test signer")])
+    now = datetime.now(UTC)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(subject)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(days=1))
+        .not_valid_after(now + timedelta(days=30))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                content_commitment=True,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=True,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .sign(key, hashes.SHA256())
+    )
+    return key, cert
+
+
+def signed_pdf(
+    out: Path,
+    *,
+    name: str = "signed.pdf",
+    text: str = "Invoice 2026-0001",
+    modified_text: str | None = None,
+    broken: bool = False,
+    cert_name: str | None = None,
+) -> Path:
+    data = pdf(out, name=name, text=text).read_bytes()
+    key, cert = _test_certificate()
+    der = cert.public_bytes(serialization.Encoding.DER)
+    signer = signers.SimpleSigner(
+        signing_cert=asn1_x509.Certificate.load(der),
+        signing_key=keys.PrivateKeyInfo.load(
+            key.private_bytes(
+                serialization.Encoding.DER,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            )
+        ),
+        cert_registry=SimpleCertificateStore.from_certs([asn1_x509.Certificate.load(der)]),
+    )
+    writer = IncrementalPdfFileWriter(io.BytesIO(data), strict=False)
+    meta = signers.PdfSignatureMetadata(field_name="Signature1")
+    signed = signers.sign_pdf(writer, meta, signer=signer).getvalue()
+    if broken:
+        signed = signed.replace(b"720 Td", b"721 Td", 1)
+    if modified_text is not None:
+        changed = {5: _pdf_stream("", _pdf_content(modified_text, None, None, None))}
+        signed = _pdf_update(signed, changed, None)
+    if cert_name:
+        _write(out, cert_name, cert.public_bytes(serialization.Encoding.PEM))
+    return _write(out, name, signed)
 
 
 _MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"

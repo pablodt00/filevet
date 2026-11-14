@@ -65,7 +65,7 @@ def test_options_reach_the_limits(
     benign_pdf: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     seen: list[Limits] = []
-    monkeypatch.setattr(cli, "scan", lambda path, limits: seen.append(limits) or scan(path))
+    monkeypatch.setattr(cli, "scan", lambda path, limits, **_: seen.append(limits) or scan(path))
     cli.main(["scan", str(benign_pdf), "--max-depth", "1", "--timeout", "2.5"])
     assert (seen[0].max_depth, seen[0].timeout_s) == (1, 2.5)
 
@@ -86,6 +86,43 @@ def test_usage_errors_exit_3(argv: list[str], benign_pdf: Path) -> None:
     assert exc.value.code == 3
 
 
+def test_context_file_flags_unknown_iban(
+    sample_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    known, other = generators.fake_iban(2), generators.fake_iban(5)
+    path = generators.pdf(sample_dir, text=f"Muster Lieferant GmbH\nIBAN {other}")
+    context = tmp_path / "context.yaml"
+    context.write_text(f"parties:\n  Muster Lieferant GmbH:\n    ibans: [{known}]\n")
+    assert cli.main(["scan", str(path), "--context", str(context)]) == 1
+    out = capsys.readouterr().out
+    assert "integrity.iban_not_allowlisted" in out
+    assert known not in out and known[-4:] not in out
+    assert other not in out
+    cli.main(["scan", str(path), "--context", str(context), "--no-mask"])
+    assert other in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "content",
+    ["parties: [1, 2]", "parties:\n  Secret GmbH:\n    iban: [x]", "key: [", "x" * (2 << 20)],
+)
+def test_invalid_context_exits_3(
+    content: str, benign_pdf: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    context = tmp_path / "context.yaml"
+    context.write_text(content)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["scan", str(benign_pdf), "--context", str(context)])
+    assert exc.value.code == 3
+    assert "Secret" not in capsys.readouterr().err
+
+
+def test_missing_context_exits_3(benign_pdf: Path, tmp_path: Path) -> None:
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["scan", str(benign_pdf), "--context", str(tmp_path / "none.yaml")])
+    assert exc.value.code == 3
+
+
 def test_oversized_input_exits_3(benign_pdf: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "Limits", lambda **kw: Limits(max_input_bytes=1, **kw))
     with pytest.raises(SystemExit) as exc:
@@ -96,7 +133,7 @@ def test_oversized_input_exits_3(benign_pdf: Path, monkeypatch: pytest.MonkeyPat
 def test_internal_error_exits_4(
     benign_pdf: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    def fail(*args: object) -> None:
+    def fail(*args: object, **kwargs: object) -> None:
         raise RuntimeError("file contents")
 
     monkeypatch.setattr(cli, "scan", fail)

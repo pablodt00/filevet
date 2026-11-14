@@ -1,0 +1,7 @@
+generator: pdf
+args:
+  name: invoice.pdf
+  text: "Invoice 2026-0001\nConsulting 400.00\nTravel 120.00\nVAT 19% 98.80\nTotal 718.80"
+must_find:
+- integrity.totals_mismatch
+max_severity: medium

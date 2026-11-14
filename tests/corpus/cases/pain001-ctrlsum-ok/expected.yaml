@@ -1,0 +1,9 @@
+generator: camt053
+args:
+  name: pain001.xml
+  message: pain.001.001.09
+  entries: 3
+  control_sum: '375.00'
+  end_to_end: E2E-{i}
+must_find: []
+max_severity: info

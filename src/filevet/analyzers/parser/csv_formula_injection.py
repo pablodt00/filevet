@@ -6,12 +6,12 @@ import zipfile
 from collections.abc import Iterable, Iterator
 from xml.etree.ElementTree import Element, ParseError
 
-from charset_normalizer import from_bytes
 from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult
 from filevet.core.artifact import Artifact
+from filevet.core.extract_finance import column, decode
 from filevet.core.finding import Finding, Location, Severity
 
 MAX_ROWS = 1_000_000
@@ -84,16 +84,8 @@ class _TooLarge(Exception):
     pass
 
 
-def _decode(data: bytes) -> str:
-    try:
-        return data.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        best = from_bytes(data[: 1 << 20]).best()
-        return data.decode(best.encoding if best else "latin-1", "replace")
-
-
 def _csv_cells(data: bytes) -> Iterator[tuple[Location, str]]:
-    text = _decode(data)
+    text = decode(data)
     try:
         dialect: type[csv.Dialect] | csv.Dialect = csv.Sniffer().sniff(text[:SNIFF], ",;\t|")
     except csv.Error:
@@ -104,8 +96,8 @@ def _csv_cells(data: bytes) -> Iterator[tuple[Location, str]]:
             raise _TooLarge(f"more than {MAX_ROWS} rows")
         if len(row) > MAX_COLUMNS:
             raise _TooLarge(f"row {row_number} has more than {MAX_COLUMNS} columns")
-        for column, value in enumerate(row, 1):
-            yield Location(cell=f"{_column(column)}{row_number}"), value
+        for number, value in enumerate(row, 1):
+            yield Location(cell=f"{column(number)}{row_number}"), value
 
 
 def _xlsx_cells(zf: zipfile.ZipFile, limit: int) -> Iterator[tuple[Location, str]]:
@@ -119,10 +111,10 @@ def _xlsx_cells(zf: zipfile.ZipFile, limit: int) -> Iterator[tuple[Location, str
     for part in sorted(n for n in names if n.startswith("xl/worksheets/") and n.endswith(".xml")):
         sheet = part.rsplit("/", 1)[1].removesuffix(".xml")
         for row_number, row in enumerate(_local(_xml(zf, part, limit), "row"), 1):
-            for column, cell in enumerate(_local(row, "c"), 1):
+            for number, cell in enumerate(_local(row, "c"), 1):
                 if next(_local(cell, "f"), None) is not None:
                     continue
-                ref = cell.get("r") or f"{_column(column)}{row.get('r') or row_number}"
+                ref = cell.get("r") or f"{column(number)}{row.get('r') or row_number}"
                 if cell.get("t") == "inlineStr":
                     value = "".join(t.text or "" for t in _local(cell, "t"))
                 elif cell.get("t") == "s":
@@ -146,14 +138,6 @@ def _xml(zf: zipfile.ZipFile, part: str, limit: int) -> Element:
 
 def _local(element: Element, name: str) -> Iterator[Element]:
     return (e for e in element.iter() if e.tag.rsplit("}", 1)[-1] == name)
-
-
-def _column(number: int) -> str:
-    letters = ""
-    while number:
-        number, rest = divmod(number - 1, 26)
-        letters = chr(65 + rest) + letters
-    return letters
 
 
 def _finding(location: Location, value: str, severity: Severity) -> Finding:

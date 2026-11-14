@@ -1,0 +1,7 @@
+generator: pdf
+args:
+  name: invoice.pdf
+  text: "Invoice 2026-0001\nIBAN: DE00123456780000000001\nTotal 100.00"
+must_find:
+- integrity.iban_invalid
+max_severity: medium

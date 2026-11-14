@@ -1,0 +1,10 @@
+generator: pdf
+args:
+  name: statement.pdf
+  text: "Statement January 2026\nOpening 1,000.00\nPayment -125.00\nClosing 875.00"
+  updates:
+  - "Statement January 2026\nOpening 1,000.00\nPayment -25.00\nClosing 975.00"
+must_find:
+- integrity.pdf_incremental_updates
+- integrity.pdf_revision_diff
+max_severity: medium

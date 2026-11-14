@@ -1,0 +1,11 @@
+generator: pdf
+args:
+  name: invoice.pdf
+  text: "Invoice 2026-0001\nMuster Lieferant GmbH\nIBAN DE92123456780000000009\nTotal 100.00"
+context:
+  parties:
+    Muster Lieferant GmbH:
+      ibans: [DE17123456780000000001]
+must_find:
+- integrity.iban_not_allowlisted
+max_severity: medium

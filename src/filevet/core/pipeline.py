@@ -13,7 +13,13 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from filevet.core.analyzer import AnalysisContext, Analyzer, AnalyzerResult, load_analyzers
+from filevet.core.analyzer import (
+    AnalysisContext,
+    Analyzer,
+    AnalyzerResult,
+    Expected,
+    load_analyzers,
+)
 from filevet.core.artifact import Artifact
 from filevet.core.errors import ScanError
 from filevet.core.finding import Finding, Severity
@@ -29,6 +35,9 @@ def scan(
     source: Path | bytes,
     limits: Limits = DEFAULT_LIMITS,
     analyzers: Sequence[Analyzer] | None = None,
+    *,
+    expected: Expected | None = None,
+    mask: bool = True,
 ) -> Report:
     if analyzers is None:
         analyzers = load_analyzers()
@@ -41,7 +50,7 @@ def scan(
     if len(data) > limits.max_input_bytes:
         raise ScanError(f"input is larger than the {limits.max_input_bytes} byte limit")
 
-    ctx = AnalysisContext(limits=limits)
+    ctx = AnalysisContext(limits=limits, expected=expected or Expected(), mask=mask)
     artifacts: list[Artifact] = []
     findings: list[Finding] = []
     runs: list[AnalyzerRun] = []

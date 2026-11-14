@@ -1,0 +1,6 @@
+generator: pdf
+args:
+  name: invoice.pdf
+  text: "Invoice 2026-0001\nConsulting 400.00\nTravel 120.00\nVAT 19% 98.80\nTotal 618.80\nIBAN DE17123456780000000001"
+must_find: []
+max_severity: info

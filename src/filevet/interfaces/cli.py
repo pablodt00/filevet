@@ -7,13 +7,14 @@ from pathlib import Path
 from typing import NoReturn, TextIO
 from uuid import UUID
 
+import yaml
 from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
 from filevet import __version__
-from filevet.core.analyzer import load_analyzers
+from filevet.core.analyzer import Expected, load_analyzers
 from filevet.core.artifact import Artifact
 from filevet.core.errors import ScanError
 from filevet.core.identify import TYPES
@@ -24,6 +25,7 @@ from filevet.core.report import Report
 EXIT_CODES = {"pass": 0, "review": 1, "block": 2}
 USAGE_ERROR = 3
 INTERNAL_ERROR = 4
+MAX_CONTEXT_BYTES = 1 << 20
 
 
 class _Parser(argparse.ArgumentParser):
@@ -42,6 +44,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     scan_parser.add_argument("--max-depth", type=int, default=DEFAULT_LIMITS.max_depth)
     scan_parser.add_argument(
         "--timeout", type=float, default=DEFAULT_LIMITS.timeout_s, help="seconds per analyzer"
+    )
+    scan_parser.add_argument(
+        "--context", type=Path, help="YAML file of known IBANs, PDF producers and trust roots"
+    )
+    scan_parser.add_argument(
+        "--no-mask", action="store_true", help="show IBANs in full in the report evidence"
     )
     commands.add_parser("analyzers", help="list registered analyzers and the types they support")
     commands.add_parser("version", help="print the filevet version")
@@ -70,8 +78,9 @@ def _scan(parser: _Parser, args: argparse.Namespace) -> int:
         limits = Limits(max_depth=args.max_depth, timeout_s=args.timeout)
     except ValidationError as exc:
         parser.error(f"invalid limit: {exc.errors()[0]['loc'][0]} {exc.errors()[0]['msg']}")
+    expected = _context(parser, args.context) if args.context else None
     try:
-        report = scan(args.path, limits)
+        report = scan(args.path, limits, expected=expected, mask=not args.no_mask)
     except ScanError as exc:
         parser.error(str(exc))
     output = args.output.open("w") if args.output else contextlib.nullcontext(sys.stdout)
@@ -81,6 +90,21 @@ def _scan(parser: _Parser, args: argparse.Namespace) -> int:
         else:
             _print_table(report, out)
     return EXIT_CODES[report.verdict]
+
+
+def _context(parser: _Parser, path: Path) -> Expected:
+    try:
+        with path.open("rb") as f:
+            data = f.read(MAX_CONTEXT_BYTES + 1)
+        if len(data) > MAX_CONTEXT_BYTES:
+            parser.error(f"context file is larger than {MAX_CONTEXT_BYTES} bytes")
+        return Expected.model_validate(yaml.safe_load(data) or {})
+    except OSError:
+        parser.error(f"cannot read context file: {path}")
+    except yaml.YAMLError:
+        parser.error("context file is not valid YAML")
+    except ValidationError as exc:
+        parser.error(f"invalid context file: {exc.errors()[0]['msg']}")
 
 
 def _print_table(report: Report, out: TextIO) -> None:

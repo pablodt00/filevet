@@ -32,8 +32,8 @@ ClamAV tests run only when `FILEVET_CLAMD` is set to the address of a running `c
 
 ```
 src/filevet/
-  core/          contracts, pipeline, type detection, limits, report
-  analyzers/     one subpackage per family: basic/, malware/, parser/, format/
+  core/          contracts, pipeline, type detection, limits, report, financial entity extraction
+  analyzers/     one subpackage per family: basic/, malware/, parser/, format/, integrity/
   interfaces/    CLI (cli.py) and later the REST API
   policies/      default verdict policy (planned, Phase 3)
 tests/
@@ -64,7 +64,7 @@ Analyzers are discovered through the `filevet.analyzers` entry point group in `p
 Use `/new-analyzer <family.name> <file-types>`. By hand:
 
 1. Make sure there's an agreed new-analyzer issue with the rule IDs.
-2. Add `src/filevet/analyzers/<family>/<name>.py`. The family matches the rule ID prefix (`malware`, `parser`, `format`, `basic`).
+2. Add `src/filevet/analyzers/<family>/<name>.py`. The family matches the rule ID prefix (`malware`, `parser`, `format`, `basic`, `integrity`).
 3. Implement `Analyzer`. `supports()` looks only at the detected type. `analyze()` reads the artifact, never writes it, never runs or renders it, and never uses the network.
 4. Register it under `[project.entry-points."filevet.analyzers"]` in `pyproject.toml`.
 5. Unit tests in `tests/unit/` for every rule, including inputs that must not trigger it, plus a test that malformed input produces a finding and not an exception.
