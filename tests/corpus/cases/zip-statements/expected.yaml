@@ -1,0 +1,12 @@
+generator: zip_entries
+args:
+  entries:
+    statement.csv:
+    - csv
+    invoice.pdf:
+    - pdf
+must_find: []
+must_not_find:
+- parser.archive_bomb
+- parser.path_traversal
+max_severity: info

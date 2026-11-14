@@ -1,0 +1,5 @@
+generator: pdf
+args:
+  rich_media: true
+must_find:
+- malware.pdf_active_content

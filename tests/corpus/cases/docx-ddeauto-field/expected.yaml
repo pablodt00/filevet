@@ -1,0 +1,5 @@
+generator: docx
+args:
+  dde: '"C:\missing\filevet.exe" "x"'
+must_find:
+- malware.office_macros

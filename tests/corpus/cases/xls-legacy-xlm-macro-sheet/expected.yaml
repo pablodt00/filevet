@@ -1,0 +1,6 @@
+generator: ole
+args:
+  name: book.xls
+  macro_sheet: true
+must_find:
+- malware.office_macros

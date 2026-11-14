@@ -1,0 +1,8 @@
+generator: bank_statement_csv
+args:
+  rows: 100000
+  name: export.csv
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

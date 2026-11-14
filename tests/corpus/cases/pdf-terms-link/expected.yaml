@@ -1,0 +1,6 @@
+generator: pdf
+args:
+  uri: https://example.invalid/terms
+must_find: []
+must_not_find: []
+max_severity: low

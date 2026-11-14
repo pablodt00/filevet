@@ -18,6 +18,6 @@ RUN apt-get update \
     && rm -rf /usr/local/lib/python3.13/ensurepip \
     && useradd --system --uid 10001 --no-create-home filevet
 COPY --from=build /app/.venv /app/.venv
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1
 USER 10001
 ENTRYPOINT ["filevet"]

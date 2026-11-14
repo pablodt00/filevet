@@ -36,7 +36,7 @@ def test_hostile_run_reports_misses(runner: ModuleType, tmp_path: Path) -> None:
     plan = _plan(
         tmp_path,
         [
-            {"generator": "csv_rows", "args": {"rows": [["a"], ["\t=1+1"]]}},
+            {"generator": "csv_rows", "args": {"rows": [["a"], ["plain"]]}},
             {"generator": "open", "args": {"file": "/etc/passwd"}},
             {"generator": "csv_rows", "args": {"bogus": 1}},
         ],

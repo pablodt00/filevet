@@ -1,0 +1,8 @@
+generator: disguised
+args:
+  name: notice.html
+  parts:
+  - html
+must_find: []
+must_not_find: []
+max_severity: info

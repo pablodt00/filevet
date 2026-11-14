@@ -1,0 +1,17 @@
+generator: xlsx
+args:
+  cells:
+  - - Payee
+    - Amount
+    - Phone
+  - - Muster GmbH
+    - '-12.50'
+    - +49 30 1234567
+  - - Beispiel AG
+    - +1,200.00
+    - (+1) 555 0100
+  shared_strings: true
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

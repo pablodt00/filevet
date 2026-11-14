@@ -1,0 +1,6 @@
+generator: camt053
+args:
+  doctype: <!DOCTYPE Document [<!ENTITY e "x">]>
+  remittance_xml: '&e;'
+must_find:
+- parser.xml_unsafe

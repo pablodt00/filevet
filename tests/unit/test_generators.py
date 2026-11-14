@@ -13,7 +13,7 @@ CALLS = [
     ("nested_zip", {"depth": 3}),
     ("disguised", {"name": "invoice.pdf", "parts": ["pdf", "zip"]}),
     ("pdf", {"javascript": "app.alert('filevet')", "launch": "C:\\missing\\x (1).exe"}),
-    ("xlsx", {"cells": [["Total", "=SUM(1,2)"]], "macro": True}),
+    ("xlsx", {"cells": [["Total", "=SUM(1,2)"]], "vba": "Sub AutoOpen()\r\nEnd Sub"}),
 ]
 
 
@@ -58,7 +58,7 @@ def test_pdf_xref_points_at_objects(sample_dir: Path) -> None:
 
 
 def test_xlsx_macro_adds_vba_part(sample_dir: Path) -> None:
-    with zipfile.ZipFile(generators.xlsx(sample_dir, cells=[["a"]], macro=True)) as zf:
+    with zipfile.ZipFile(generators.xlsx(sample_dir, cells=[["a"]], vba="")) as zf:
         assert "xl/vbaProject.bin" in zf.namelist()
     with zipfile.ZipFile(generators.xlsx(sample_dir, cells=[["a"]], name="b.xlsx")) as zf:
         assert "xl/vbaProject.bin" not in zf.namelist()

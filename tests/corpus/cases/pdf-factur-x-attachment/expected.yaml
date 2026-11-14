@@ -1,0 +1,9 @@
+generator: pdf
+args:
+  embedded:
+    factur-x.xml:
+    - xml
+must_find: []
+must_not_find:
+- malware.embedded_executable
+max_severity: low

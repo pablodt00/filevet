@@ -56,7 +56,7 @@ The design behind it is in [docs/architecture.md](docs/architecture.md).
 
 5. Add tests:
    - Unit tests in `tests/unit/` for each rule, including inputs that must not trigger it.
-   - At least one malicious and one benign corpus case in `tests/corpus/`, each with an `expected.yaml`.
+   - At least one malicious and one benign corpus case, each in its own `tests/corpus/cases/<case-id>/expected.yaml`. The file names the `generator` and its `args`, lists the rule IDs the case `must_find`, and for benign cases sets `must_not_find` and `max_severity`. No benign case may get a finding of `high` or above.
    - A test that malformed input produces a finding instead of an exception.
 
 6. Add the analyzer to the table in the README.

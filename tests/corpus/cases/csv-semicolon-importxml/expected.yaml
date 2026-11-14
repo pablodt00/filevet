@@ -1,0 +1,10 @@
+generator: csv_rows
+args:
+  rows:
+  - - note
+    - amount
+  - - +IMPORTXML("https://example.invalid","//a")
+    - 1,00
+  delimiter: ;
+must_find:
+- parser.csv_formula_injection

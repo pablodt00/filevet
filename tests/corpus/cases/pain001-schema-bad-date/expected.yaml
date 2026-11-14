@@ -1,0 +1,7 @@
+generator: camt053
+args:
+  name: pain001.xml
+  message: pain.001.001.09
+  created: yesterday
+must_find:
+- format.iso20022_schema

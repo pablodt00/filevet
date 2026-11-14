@@ -1,0 +1,16 @@
+generator: xlsx
+args:
+  cells:
+  - - Date
+    - Description
+    - Amount
+  - - '2026-01-02'
+    - Rent
+    - '1200.00'
+  - - Total
+    - ''
+    - =SUM(C2:C2)
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

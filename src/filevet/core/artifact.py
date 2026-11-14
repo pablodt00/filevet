@@ -17,3 +17,7 @@ class Artifact(BaseModel):
     depth: int = 0
     parent_id: UUID | None = None
     path: Path = Field(exclude=True)
+
+    def read(self, limit: int) -> bytes:
+        with self.path.open("rb") as f:
+            return f.read(limit)

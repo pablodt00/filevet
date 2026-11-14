@@ -3,4 +3,3 @@
   generator: csv_rows
   args:
     rows: [["description"], ["\t=1+1"]]
-  xfail: parser.csv_formula_injection does not exist yet

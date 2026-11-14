@@ -1,0 +1,8 @@
+generator: zip_entries
+args:
+  entries:
+    s.csv:
+    - csv
+  copies: 1001
+must_find:
+- parser.archive_bomb

@@ -1,0 +1,8 @@
+generator: disguised
+args:
+  name: invoice.pdf
+  parts:
+  - pdf
+  - zip
+must_find:
+- parser.polyglot

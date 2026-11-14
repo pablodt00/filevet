@@ -1,0 +1,7 @@
+generator: zip_entries
+args:
+  entries:
+    run.ps1:
+    - script
+must_find:
+- malware.embedded_executable

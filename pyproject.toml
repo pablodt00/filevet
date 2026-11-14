@@ -12,8 +12,13 @@ classifiers = [
   "Topic :: Security",
 ]
 dependencies = [
+    "charset-normalizer>=3.5.2",
+    "defusedxml>=0.7.1",
+    "olefile>=0.47",
     "pydantic>=2",
     "rich>=15.0.0",
+    "xmlschema>=4.3.2",
+    "yara-python>=4.5.4",
 ]
 
 [project.urls]
@@ -25,6 +30,16 @@ filevet = "filevet.interfaces.cli:main"
 
 [project.entry-points."filevet.analyzers"]
 "basic.type_mismatch" = "filevet.analyzers.basic.type_mismatch:TypeMismatch"
+"format.iso20022_schema" = "filevet.analyzers.format.iso20022_schema:Iso20022Schema"
+"malware.clamav" = "filevet.analyzers.malware.clamav:ClamAV"
+"malware.embedded_executable" = "filevet.analyzers.malware.embedded_executable:EmbeddedExecutable"
+"malware.office_macros" = "filevet.analyzers.malware.office_macros:OfficeMacros"
+"malware.pdf_active_content" = "filevet.analyzers.malware.pdf_active_content:PdfActiveContent"
+"malware.yara" = "filevet.analyzers.malware.yara:Yara"
+"parser.archive" = "filevet.analyzers.parser.archive:Archive"
+"parser.csv_formula_injection" = "filevet.analyzers.parser.csv_formula_injection:CsvFormulaInjection"
+"parser.polyglot" = "filevet.analyzers.parser.polyglot:Polyglot"
+"parser.xml_unsafe" = "filevet.analyzers.parser.xml_unsafe:XmlUnsafe"
 
 [dependency-groups]
 dev = [
@@ -59,6 +74,10 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = "filevet.core.*"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["defusedxml.*", "olefile", "yara"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

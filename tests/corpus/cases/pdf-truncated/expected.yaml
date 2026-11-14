@@ -1,0 +1,5 @@
+generator: pdf
+args:
+  truncated: true
+must_find:
+- parser.malformed

@@ -1,0 +1,7 @@
+generator: zip_entries
+args:
+  entries:
+    invoice.pdf.exe:
+    - pe_stub
+must_find:
+- malware.embedded_executable

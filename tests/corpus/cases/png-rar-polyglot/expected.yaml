@@ -1,0 +1,8 @@
+generator: disguised
+args:
+  name: scan.png
+  parts:
+  - png
+  - rar_stub
+must_find:
+- parser.polyglot

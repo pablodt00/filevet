@@ -1,0 +1,7 @@
+generator: camt053
+args:
+  doctype: <!DOCTYPE Document [<!ENTITY a "lol"><!ENTITY b "&a;&a;&a;&a;"><!ENTITY
+    c "&b;&b;&b;&b;">]>
+  remittance_xml: '&c;'
+must_find:
+- parser.xml_unsafe

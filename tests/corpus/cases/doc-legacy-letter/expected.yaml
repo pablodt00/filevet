@@ -1,0 +1,7 @@
+generator: ole
+args:
+  name: letter.doc
+must_find: []
+must_not_find:
+- malware.office_macros
+max_severity: info

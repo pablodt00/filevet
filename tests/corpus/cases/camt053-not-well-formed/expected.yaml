@@ -1,0 +1,5 @@
+generator: camt053
+args:
+  remittance_xml: <Broken>
+must_find:
+- parser.malformed

@@ -1,0 +1,7 @@
+generator: nested_zip
+args:
+  inner_size: 102400
+must_find: []
+must_not_find:
+- parser.archive_bomb
+max_severity: info

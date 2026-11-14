@@ -1,0 +1,7 @@
+generator: zip_entries
+args:
+  entries:
+    ../../etc/cron.d/filevet:
+    - csv
+must_find:
+- parser.path_traversal

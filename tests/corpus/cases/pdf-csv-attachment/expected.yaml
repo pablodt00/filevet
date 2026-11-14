@@ -1,0 +1,9 @@
+generator: pdf
+args:
+  embedded:
+    statement.csv:
+    - csv
+must_find: []
+must_not_find:
+- malware.embedded_executable
+max_severity: low

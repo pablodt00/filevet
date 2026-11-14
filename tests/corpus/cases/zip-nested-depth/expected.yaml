@@ -1,0 +1,5 @@
+generator: nested_zip
+args:
+  depth: 4
+must_find:
+- parser.archive_bomb

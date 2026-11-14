@@ -1,0 +1,5 @@
+generator: camt053
+args:
+  msg_id: MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+must_find:
+- format.iso20022_schema

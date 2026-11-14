@@ -1,0 +1,9 @@
+generator: camt053
+args:
+  name: camt052.xml
+  message: camt.052.001.08
+must_find: []
+must_not_find:
+- parser.xml_unsafe
+- format.iso20022_schema
+max_severity: info

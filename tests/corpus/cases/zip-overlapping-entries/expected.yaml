@@ -1,0 +1,8 @@
+generator: zip_entries
+args:
+  entries:
+    statement.csv:
+    - csv
+  overlap: true
+must_find:
+- parser.archive_bomb

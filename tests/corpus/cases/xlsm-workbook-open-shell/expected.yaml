@@ -1,0 +1,14 @@
+generator: xlsx
+args:
+  name: statement.xlsm
+  cells:
+  - - Date
+    - Description
+    - Amount
+  - - '2026-01-02'
+    - Rent
+    - '1200.00'
+  vba: "Sub Workbook_Open()\r\n    Shell \"C:\\missing\\filevet.exe\"\r\nEnd Sub\r\
+    \n"
+must_find:
+- malware.office_macros

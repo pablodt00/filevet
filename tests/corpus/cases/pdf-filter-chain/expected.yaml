@@ -1,0 +1,5 @@
+generator: pdf
+args:
+  filter_chain: true
+must_find:
+- malware.pdf_active_content

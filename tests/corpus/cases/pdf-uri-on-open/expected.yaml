@@ -1,0 +1,6 @@
+generator: pdf
+args:
+  uri: https://example.invalid/login
+  open_page: true
+must_find:
+- malware.pdf_active_content

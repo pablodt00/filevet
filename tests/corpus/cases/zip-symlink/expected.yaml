@@ -1,0 +1,9 @@
+generator: zip_entries
+args:
+  entries:
+    a.csv:
+    - csv
+  symlinks:
+    statement.csv: /etc/passwd
+must_find:
+- parser.path_traversal

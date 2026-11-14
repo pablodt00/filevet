@@ -1,0 +1,7 @@
+generator: csv_rows
+args:
+  rows:
+  - - note
+  - - "\uFF1D1+1"
+must_find:
+- parser.csv_formula_injection

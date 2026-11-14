@@ -1,0 +1,14 @@
+generator: csv_rows
+args:
+  rows:
+  - - Datum
+    - Betrag
+  - - 02.01.2026
+    - -12,50
+  - - 03.01.2026
+    - 1.200,00
+  delimiter: ;
+must_find: []
+must_not_find:
+- parser.csv_formula_injection
+max_severity: info

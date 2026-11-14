@@ -1,0 +1,8 @@
+generator: disguised
+args:
+  name: benign.pdf
+  parts:
+  - pdf
+must_find: []
+must_not_find: []
+max_severity: info
