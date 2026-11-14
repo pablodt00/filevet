@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from filevet import __version__
 from filevet.core.artifact import Artifact
@@ -25,7 +25,7 @@ class AnalyzerRun(BaseModel):
 class Report(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    filevet_version: str = __version__
+    filevet_version: str = Field(default_factory=lambda: __version__)
     artifacts: list[Artifact]
     findings: list[Finding]
     analyzer_runs: list[AnalyzerRun]
