@@ -14,11 +14,9 @@ Fintechs and finance teams take in files from outside every day: invoices, bank 
 ## Status
 
 > [!WARNING]
-> filevet is pre-1.0 and not usable yet. The 0.0.x releases on PyPI test the pipeline end to end. So far the only analyzer is `basic.type_mismatch`. Until 1.0, the CLI, report format and Python API may change between minor versions.
+> filevet is pre-1.0 and not ready for production. `filevet scan` runs end to end, but the only analyzer so far is `basic.type_mismatch`. Until 1.0, the CLI, report format and Python API may change between minor versions.
 
 ## Quickstart
-
-These commands will work from v0.1.0.
 
 ```sh
 pipx install filevet
@@ -44,7 +42,7 @@ Trimmed output from a file named `invoice.pdf` that's really a Windows executabl
 
 ```json
 {
-  "filevet_version": "0.0.2",
+  "filevet_version": "0.1.1",
   "artifacts": [
     {
       "id": "1bf01f46-66b9-4b57-a40c-031d8d71615f",
@@ -89,7 +87,7 @@ CI jobs can act on the exit code of `filevet scan` without parsing the report.
 
 ## What it checks
 
-Planned for v0.1:
+`basic.type_mismatch` is available now. The others are planned for the v0.1 milestone.
 
 | Analyzer | File types | Threats covered |
 | --- | --- | --- |
