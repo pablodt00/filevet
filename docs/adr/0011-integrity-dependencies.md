@@ -24,7 +24,7 @@ We add two runtime dependencies:
 | `pyhanko` | MIT | `integrity.pdf_digital_signature`: signature, coverage and modification checks |
 | `pyyaml` | MIT | Reading the `--context` file with `yaml.safe_load` |
 
-pyHanko brings `pyhanko-certvalidator`, `asn1crypto`, `cryptography`, `cffi`, `lxml`, `oscrypto`, `aiohttp` and their dependencies. Their licenses are MIT, BSD, Apache-2.0, PSF-2.0, MPL-2.0 and MIT-0. We add `MIT-0` (cffi) and the compound expressions `Apache-2.0 AND MIT` (aiohttp) and `Apache-2.0 OR BSD-3-Clause` (cryptography) to the license gate in `.github/workflows/security.yml`.
+pyHanko brings `pyhanko-certvalidator`, `asn1crypto`, `cryptography`, `cffi`, `lxml`, `oscrypto`, `aiohttp` and their dependencies. Their licenses are MIT, BSD, Apache-2.0, PSF-2.0, MPL-2.0 and MIT-0. We add `MIT-0` (cffi) and the compound expressions `Apache-2.0 AND MIT` (aiohttp) and `Apache-2.0 OR BSD-3-Clause` (cryptography) to the license gate in `.github/workflows/security.yml`. GitHub's dependency review reads `aiohappyeyeballs` (PSF-2.0) as `0BSD AND BSD-3-Clause AND GPL-1.0-or-later AND PSF-2.0 AND Python-2.0`, probably because of the license history quoted in its PSF license text. It joins `colorama`, `nodeenv` and `typing-extensions` in `allow-dependencies-licenses`.
 
 The analyzer always builds its `ValidationContext` with an explicit, possibly empty list of trust roots and `allow_fetching=False`. It never falls back to the system trust store and never fetches CRLs, OCSP responses or certificates. Trust roots come only from the `trust_roots` list in the context file.
 
