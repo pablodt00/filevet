@@ -57,3 +57,10 @@ def pytest_terminal_summary(terminalreporter: pytest.TerminalReporter) -> None:
             found, expected = rule in props["found"], rule in props["expected"]
             marks.append("+" if found and expected else "-" if expected else "o" if found else ".")
         write(f"{case:<{width}}  " + " ".join(f"{m:>2}" for m in marks))
+    benign = [props for _, props in rows if not props["expected"]]
+    terminalreporter.section("false-positive rate per rule")
+    write(f"share of the {len(benign)} benign cases with a finding above info")
+    for rule in rules:
+        hits = sum(rule in props.get("flagged", []) for props in benign)
+        if hits:
+            write(f"{rule:<40} {hits:>3}  {hits / len(benign):6.1%}")

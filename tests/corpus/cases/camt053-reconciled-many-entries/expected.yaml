@@ -1,0 +1,7 @@
+generator: camt053
+args:
+  entries: 50
+  opening: '1000.00'
+  closing: '7250.00'
+must_find: []
+max_severity: info

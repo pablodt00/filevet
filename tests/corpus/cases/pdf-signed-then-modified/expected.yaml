@@ -1,0 +1,8 @@
+generator: signed_pdf
+args:
+  name: statement.pdf
+  text: "Statement January 2026\nClosing 875.00"
+  modified_text: "Statement January 2026\nClosing 8,750.00"
+must_find:
+- integrity.pdf_digital_signature
+- integrity.pdf_revision_diff

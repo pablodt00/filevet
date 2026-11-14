@@ -1,0 +1,6 @@
+generator: camt053
+args:
+  iban: DE00123456780000000001
+must_find:
+- integrity.iban_invalid
+max_severity: medium

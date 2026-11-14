@@ -1,0 +1,8 @@
+generator: camt053
+args:
+  entries: 3
+  opening: '1000.00'
+  closing: '1400.00'
+must_find:
+- integrity.totals_mismatch
+max_severity: medium

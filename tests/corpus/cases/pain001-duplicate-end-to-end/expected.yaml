@@ -1,0 +1,9 @@
+generator: camt053
+args:
+  name: pain001.xml
+  message: pain.001.001.09
+  entries: 2
+  end_to_end: E2E-0001
+must_find:
+- integrity.duplicate_ids
+max_severity: medium

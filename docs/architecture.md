@@ -32,7 +32,7 @@ There are three contracts. Analyzers depend only on these, never on each other.
 
 **`Artifact`**: one file being scanned, either the input or an extracted child. It's immutable and holds an ID, name, size, hashes, declared and detected types, depth, parent ID and a path to a read-only copy. The pipeline owns the file; analyzers only read it.
 
-**`Analyzer`**: a protocol. `analyze` returns an `AnalyzerResult` with findings and extracted children.
+**`Analyzer`**: a protocol. `analyze` returns an `AnalyzerResult` with findings and extracted children. The `AnalysisContext` it receives holds the limits, the expected values from the `--context` file (`Expected`), and whether to mask IBANs in evidence.
 
 ```python
 class Analyzer(Protocol):
@@ -61,7 +61,7 @@ This is isolation v0. Phase 4 replaces it with a `Sandbox` interface and stronge
 
 ## Built-in analyzers
 
-Analyzers are grouped in families that match their rule ID prefix: `basic`, `malware`, `parser` and `format`. Some of them also act as format handlers and return children for the pipeline to scan:
+Analyzers are grouped in families that match their rule ID prefix: `basic`, `malware`, `parser`, `format` and `integrity`. The integrity analyzers share a raw PDF reader (`analyzers/integrity/pdf.py`) and the financial entity extractor in `core/extract_finance.py`. They're described in [integrity.md](integrity.md). Some of them also act as format handlers and return children for the pipeline to scan:
 
 | Analyzer | Extracts |
 | --- | --- |

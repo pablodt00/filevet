@@ -16,6 +16,8 @@ dependencies = [
     "defusedxml>=0.7.1",
     "olefile>=0.47",
     "pydantic>=2",
+    "pyhanko>=0.38.1",
+    "pyyaml>=6.0.3",
     "rich>=15.0.0",
     "xmlschema>=4.3.2",
     "yara-python>=4.5.4",
@@ -31,6 +33,9 @@ filevet = "filevet.interfaces.cli:main"
 [project.entry-points."filevet.analyzers"]
 "basic.type_mismatch" = "filevet.analyzers.basic.type_mismatch:TypeMismatch"
 "format.iso20022_schema" = "filevet.analyzers.format.iso20022_schema:Iso20022Schema"
+"integrity.financial_data" = "filevet.analyzers.integrity.financial_data:FinancialData"
+"integrity.pdf_signature" = "filevet.analyzers.integrity.pdf_signature:PdfSignature"
+"integrity.pdf_tampering" = "filevet.analyzers.integrity.pdf_tampering:PdfTampering"
 "malware.clamav" = "filevet.analyzers.malware.clamav:ClamAV"
 "malware.embedded_executable" = "filevet.analyzers.malware.embedded_executable:EmbeddedExecutable"
 "malware.office_macros" = "filevet.analyzers.malware.office_macros:OfficeMacros"
@@ -49,7 +54,6 @@ dev = [
   "pytest>=9.2.0",
   "pytest-cov>=7.1.0",
   "pytest-xdist>=3.8.0",
-  "pyyaml>=6.0.3",
   "ruff>=0.17.4",
 ]
 
@@ -76,7 +80,7 @@ module = "filevet.core.*"
 strict = true
 
 [[tool.mypy.overrides]]
-module = ["defusedxml.*", "olefile", "yara"]
+module = ["defusedxml.*", "olefile", "yara", "yaml", "asn1crypto.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

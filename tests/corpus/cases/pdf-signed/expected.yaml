@@ -1,0 +1,6 @@
+generator: signed_pdf
+args:
+  name: statement.pdf
+  text: "Statement January 2026"
+must_find: []
+max_severity: low

@@ -1,0 +1,7 @@
+generator: pdf
+args:
+  name: application.pdf
+  text: "Account opening form"
+  form_fill: Anna Beispiel
+must_find: []
+max_severity: low

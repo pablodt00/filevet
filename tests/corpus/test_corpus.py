@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from filevet.core.analyzer import Expected
 from filevet.core.finding import Severity
 from filevet.core.pipeline import scan
 from tests.corpus import generators
@@ -32,10 +33,14 @@ def test_corpus_case(
     monkeypatch.setenv("FILEVET_XSD_DIR", str(sample_dir))
     monkeypatch.delenv("FILEVET_CLAMD", raising=False)
     sample = getattr(generators, case["generator"])(sample_dir, **case["args"])
-    report = scan(sample)
+    report = scan(sample, expected=Expected.model_validate(case.get("context", {})))
     found = {f.rule_id for f in report.findings}
+    flagged = {f.rule_id for f in report.findings if f.severity != Severity.INFO}
     top = max((f.severity for f in report.findings), key=lambda s: s.rank, default=Severity.INFO)
-    record_property("corpus", {"found": sorted(found), "expected": case["must_find"]})
+    record_property(
+        "corpus",
+        {"found": sorted(found), "flagged": sorted(flagged), "expected": case["must_find"]},
+    )
 
     assert set(case["must_find"]) <= found
     assert not set(case.get("must_not_find", [])) & found

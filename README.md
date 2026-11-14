@@ -14,7 +14,7 @@ Fintechs and finance teams take in files from outside every day: invoices, bank 
 ## Status
 
 > [!WARNING]
-> filevet is pre-1.0. It detects active content, known malware and parser attacks in PDF, CSV, XLSX and legacy Office files, ISO 20022 XML and ZIP archives, but it hasn't been tested against real-world traffic yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
+> filevet is pre-1.0. It detects active content, known malware and parser attacks in PDF, CSV, XLSX and legacy Office files, ISO 20022 XML and ZIP archives, plus signs of tampering and inconsistent financial data. It hasn't been tested against real-world traffic yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
 
 ## Quickstart
 
@@ -82,6 +82,8 @@ Trimmed output from a file named `invoice.pdf` that's really a Windows executabl
 
 Other commands: `filevet analyzers` lists the registered analyzers, and `filevet version` prints the version.
 
+Integrity findings are signals for review, not proof of fraud. [docs/integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md) explains each technique and its limits. IBANs in the evidence are masked (`ES91 **** **** **** **** 1332`) unless you pass `--no-mask`. [docs/privacy.md](https://github.com/pablodt00/filevet/blob/master/docs/privacy.md) lists what a report can contain.
+
 ### Exit codes
 
 CI jobs can act on the exit code of `filevet scan` without parsing the report.
@@ -114,6 +116,19 @@ Each rule has a page in [docs/rules/](https://github.com/pablodt00/filevet/tree/
 | `parser.polyglot` | All | Files that are valid as more than one type | medium | [CWE-434](https://cwe.mitre.org/data/definitions/434.html) |
 | `parser.malformed` | All | Broken structure that viewers would repair, each in its own way | medium | |
 | `format.iso20022_schema` | ISO 20022 XML | camt.052/053/054, pain.001/008 and pacs.008 messages that don't match their XSD | low | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
+| `integrity.pdf_incremental_updates` | PDF | Saved again after creation, with what each revision changed | info to medium | [integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md) |
+| `integrity.pdf_revision_diff` | PDF | Text, amounts, IBANs or dates that differ between revisions | low, medium | [integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md) |
+| `integrity.pdf_producer_mismatch` | PDF | Producer changed between revisions, XMP and Info disagree, dates run backwards, unexpected producer for the issuer | low, medium | [integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md) |
+| `integrity.pdf_digital_signature` | PDF | Invalid signatures, content added after signing, untrusted certificates | info to high | [CWE-347](https://cwe.mitre.org/data/definitions/347.html) |
+| `integrity.pdf_text_overlay` | PDF | White boxes over text, text drawn over other text | medium | [integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md) |
+| `integrity.pdf_font_anomaly` | PDF | Digits in a second copy of a font, amount-only fonts, fonts added later | low, medium | [integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md) |
+| `integrity.iban_invalid` | PDF, text, CSV, XLSX, ISO 20022 | IBANs that fail mod-97, length or country checks | medium | [SWIFT: IBAN](https://www.swift.com/standards/data-standards/iban-international-bank-account-number) |
+| `integrity.bic_invalid` | PDF, text, CSV, XLSX, ISO 20022 | Malformed BICs, BIC and IBAN from different countries | low | [SWIFT: BIC](https://www.swift.com/standards/data-standards/bic-business-identifier-code) |
+| `integrity.iban_inconsistent` | PDF, text | More than one beneficiary IBAN in a document | medium | |
+| `integrity.iban_not_allowlisted` | PDF, text, CSV, XLSX, ISO 20022 | A known supplier with an IBAN that isn't on record (needs `--context`) | medium | |
+| `integrity.totals_mismatch` | PDF, text, ISO 20022 | Invoice lines that don't add up, unbalanced statements, camt.053 balances, pain.001 `CtrlSum` and `NbOfTxs` | medium | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
+| `integrity.date_anomaly` | PDF, text, CSV, XLSX, ISO 20022 | Impossible dates, bookings long after the value date or outside the statement period, future dates | medium | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
+| `integrity.duplicate_ids` | ISO 20022 | Repeated `MsgId`, `PmtInfId`, `EndToEndId` and other unique references | low, medium | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
 
 ### Configuration
 
@@ -122,6 +137,8 @@ Each rule has a page in [docs/rules/](https://github.com/pablodt00/filevet/tree/
 | `FILEVET_CLAMD` | Address of `clamd`: `unix:/path/clamd.sock` or `tcp:host:port`. Without it, ClamAV isn't used |
 | `FILEVET_YARA_RULES` | Directories of extra `.yar` files, separated by `:` |
 | `FILEVET_XSD_DIR` | Directory of ISO 20022 XSDs, one `<message>.xsd` per version, such as `camt.053.001.08.xsd` |
+
+`filevet scan --context context.yaml` adds what you already know: the IBANs on record for your suppliers, the PDF producers your banks use, and the certificates you trust for signatures. The format is in [docs/integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md#context-file). The context file is never logged or copied into the report.
 
 The synthetic test corpus in `tests/corpus/cases/` has one case per threat and per legitimate look-alike. `uv run pytest tests/corpus` prints a detection matrix showing which rules fire on which case.
 
@@ -134,7 +151,9 @@ The synthetic test corpus in `tests/corpus/cases/` has one case per threat and p
 - No ISO 20022 XSDs ship with filevet yet, so schema validation only runs once you supply them.
 - The rules are tested against a synthetic corpus, not real-world malware.
 - It doesn't replace antivirus or EDR, email security, or human review of high-value payments.
-- v0.1 doesn't detect document tampering or inconsistent financial data (planned for v0.2), or content aimed at AI pipelines (planned for v0.3).
+- Integrity checks only see traces of editing. A document forged from scratch, or flattened into a new PDF, looks clean to them. Scanned images aren't read.
+- PDF signatures are checked offline, against the trust roots you supply, without revocation data.
+- Content aimed at AI pipelines isn't detected yet (planned for v0.3).
 - It doesn't analyze network traffic, attribute malware to families, or store scanned files.
 
 The full scope is in [docs/SCOPE.md](https://github.com/pablodt00/filevet/blob/master/docs/SCOPE.md).

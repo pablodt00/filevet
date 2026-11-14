@@ -1,0 +1,7 @@
+generator: camt053
+args:
+  booked: '2026-01-15'
+  value_date: '2025-12-01'
+must_find:
+- integrity.date_anomaly
+max_severity: medium
