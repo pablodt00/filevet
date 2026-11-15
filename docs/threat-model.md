@@ -51,6 +51,13 @@ flowchart LR
 | Leftover files on disk | Temp files are deleted after every scan, including on error |
 | Supply chain compromise | Locked dependencies, license and vulnerability checks in CI, signed releases with SBOMs, trusted publishing without stored tokens |
 | Malicious PRs | Code owner review on every change, required CI checks, no real malware in the repository |
+| Hidden instructions for AI pipelines (invisible text, metadata, Unicode smuggling) | `ai.*` rules on hidden and metadata text, `filevet extract --visible-only` for ingestion, the `ai-ingestion` policy |
+| Pushing a file through by suppressing its findings | Suppressions name one rule and one file hash, need a reason and expire. Expired ones are ignored with a warning, and suppressed findings stay in the report |
+| Abuse of the REST API: unauthenticated use, floods, oversized or slow uploads | API keys stored as hashes, per-key rate limit, body size counted while streaming, a timeout on every request, at most one synchronous scan per CPU |
+| Uploads exposed at rest while queued | Encrypted with a key the API and workers share, deleted when a worker takes them, expired after the retention time; Redis runs without persistence in the Compose file |
+| Server-side request forgery through webhooks | Callbacks only to `https` URLs on configured hosts, only when a signing secret is set, and without following redirects |
+| A pull request steering the GitHub Action through file names or symlinks | Paths are passed after `--`, symlinks are skipped by the Action and refused by `filevet scan` |
+| Injection into SARIF, JUnit or Markdown consumers | Text is JSON-encoded, XML-escaped with control characters removed, or Markdown- and HTML-escaped |
 
 ## Out of scope
 

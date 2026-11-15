@@ -14,7 +14,7 @@ Fintechs and finance teams take in files from outside every day: invoices, bank 
 ## Status
 
 > [!WARNING]
-> filevet is pre-1.0. It detects active content, known malware and parser attacks in PDF, CSV, XLSX and legacy Office files, ISO 20022 XML and ZIP archives, plus signs of tampering and inconsistent financial data. It hasn't been tested against real-world traffic yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
+> filevet is pre-1.0. It detects active content, known malware and parser attacks in PDF, CSV, XLSX and legacy Office files, ISO 20022 XML and ZIP archives, signs of tampering and inconsistent financial data, and hidden content aimed at AI pipelines. It runs as a CLI, a Python library or a REST API. It hasn't been tested against real-world traffic yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
 
 ## Quickstart
 
@@ -40,6 +40,13 @@ docker compose run --rm filevet scan /in/statement.pdf
 ```
 
 filevet alone needs about 200 MB of RAM. With ClamAV, plan for 1 to 2 GB more for its signature database.
+
+The same Compose file runs the REST API with an async worker, Redis and ClamAV. [docs/api.md](https://github.com/pablodt00/filevet/blob/master/docs/api.md) covers the setup:
+
+```sh
+export FILEVET_SPOOL_KEY=... FILEVET_API_KEYS=...
+docker compose up -d
+```
 
 ## Example
 
@@ -73,14 +80,71 @@ Trimmed output from a file named `invoice.pdf` that's really a Windows executabl
       "analyzer": "basic.type_mismatch/0.1.0"
     }
   ],
+  "decision": {
+    "policy": "default",
+    "verdict": "block",
+    "rule": 0,
+    "rule_ids": ["basic.executable", "basic.type_mismatch"],
+    "reason": "rule 0 of policy default sets block for basic.executable, basic.type_mismatch"
+  },
   "summary": { "critical": 1, "high": 1, "medium": 0, "low": 0, "info": 0 },
   "verdict": "block"
 }
 ```
 
-`--format table` prints the same report as a table for people. The full report format is in [docs/schema/report.schema.json](https://github.com/pablodt00/filevet/blob/master/docs/schema/report.schema.json), and `filevet schema` prints it too.
+The full report format is in [docs/schema/report.schema.json](https://github.com/pablodt00/filevet/blob/master/docs/schema/report.schema.json), and `filevet schema` prints it too. `filevet scan` takes several files at once. `--format` picks the output:
 
-Other commands: `filevet analyzers` lists the registered analyzers, and `filevet version` prints the version.
+| Format | For |
+| --- | --- |
+| `json` (default) | Programs. One report, or a list of reports for several files |
+| `table` | People at a terminal |
+| `sarif` | GitHub code scanning and other CI tools (SARIF 2.1.0) |
+| `junit` | CI dashboards. One test case per file, failed on `review` or `block` |
+| `markdown` | Pull request comments |
+
+The verdict comes from a policy: `default`, `strict` (bank-grade intake), `ai-ingestion` (files an LLM will read) or your own YAML file, chosen with `--policy`. `filevet policy test` shows how verdicts change under a policy, and `--suppressions` silences a rule for a known file until a set date. Both are described in [docs/policies.md](https://github.com/pablodt00/filevet/blob/master/docs/policies.md).
+
+Other commands:
+
+- `filevet extract --visible-only file.pdf` prints only the text a person would see, as a safe extraction step before an AI pipeline.
+- `filevet serve` and `filevet worker` run the REST API and its async workers ([docs/api.md](https://github.com/pablodt00/filevet/blob/master/docs/api.md)).
+- `filevet analyzers` lists the registered analyzers, and `filevet version` prints the version.
+
+### Python
+
+```python
+from filevet import Policy, ascan, extract_text, scan
+
+report = scan("invoice.pdf", policy=Policy.load("strict"))
+print(report.verdict, report.decision.reason)
+
+report = await ascan(upload_bytes, name="invoice.pdf")
+text = extract_text("invoice.pdf", visible_only=True)
+```
+
+`examples/` has a FastAPI upload endpoint, an S3 event handler that moves files to a quarantine bucket, and a RAG ingestion script.
+
+### CI and pre-commit
+
+The repository is a GitHub Action that scans the documents a pull request adds or changes and uploads SARIF to code scanning:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+- uses: pablodt00/filevet@v0  # pin to a release tag or commit
+  with:
+    policy: strict
+```
+
+The job needs `security-events: write`. For pre-commit:
+
+```yaml
+- repo: https://github.com/pablodt00/filevet
+  rev: v0.4.0
+  hooks:
+    - id: filevet
+```
 
 Integrity findings are signals for review, not proof of fraud. [docs/integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md) explains each technique and its limits. IBANs in the evidence are masked (`ES91 **** **** **** **** 1332`) unless you pass `--no-mask`. [docs/privacy.md](https://github.com/pablodt00/filevet/blob/master/docs/privacy.md) lists what a report can contain.
 
@@ -90,11 +154,13 @@ CI jobs can act on the exit code of `filevet scan` without parsing the report.
 
 | Code | Meaning |
 | --- | --- |
-| `0` | No findings of `medium` or higher (verdict `pass`) |
-| `1` | At least one `medium` finding (verdict `review`) |
-| `2` | At least one `high` or `critical` finding (verdict `block`) |
-| `3` | Usage error, including a missing input file or one over the size limit |
+| `0` | Verdict `pass` or `pass_with_findings` |
+| `1` | Verdict `review` |
+| `2` | Verdict `block` |
+| `3` | Usage error, including a missing input file, one over the size limit, or an invalid policy |
 | `4` | Internal error in filevet |
+
+With several files, the exit code is the one for the strictest verdict. `--fail-on <severity|verdict>` replaces these codes with `1` when any file reaches that severity or verdict and `0` otherwise, which is often simpler in CI.
 
 ## What it checks
 
@@ -129,6 +195,11 @@ Each rule has a page in [docs/rules/](https://github.com/pablodt00/filevet/tree/
 | `integrity.totals_mismatch` | PDF, text, ISO 20022 | Invoice lines that don't add up, unbalanced statements, camt.053 balances, pain.001 `CtrlSum` and `NbOfTxs` | medium | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
 | `integrity.date_anomaly` | PDF, text, CSV, XLSX, ISO 20022 | Impossible dates, bookings long after the value date or outside the statement period, future dates | medium | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
 | `integrity.duplicate_ids` | ISO 20022 | Repeated `MsgId`, `PmtInfId`, `EndToEndId` and other unique references | low, medium | [ISO 20022](https://www.iso20022.org/iso-20022-message-definitions) |
+| `ai.hidden_text` | PDF | Text a reader can't see: invisible rendering mode, transparent, white, under 1 pt, off the page, covered by an image. OCR layers over scans aren't flagged | medium | [OWASP LLM01](https://owasp.org/www-project-top-10-for-large-language-model-applications/) |
+| `ai.hidden_text_office` | DOCX, XLSX | Hidden or white runs, hidden and very hidden sheets, hidden rows and columns, white fonts, custom XML parts | low, medium | [OWASP LLM01](https://owasp.org/www-project-top-10-for-large-language-model-applications/) |
+| `ai.metadata_payload` | PDF, DOCX, XLSX | Instruction-like text in Title, Subject, Keywords, XMP or document properties | high | [MITRE ATLAS AML.T0051](https://atlas.mitre.org/techniques/AML.T0051) |
+| `ai.unicode_smuggling` | PDF, Office, CSV, XML, text | Unicode tag characters, bidi overrides, zero-width characters inside words, Latin mixed with Cyrillic or Greek look-alikes | medium, high | [Trojan Source](https://trojansource.codes/) |
+| `ai.prompt_injection_patterns` | PDF, Office, CSV, XML, text | English and Spanish injection phrases, role markers, exfiltration and tool-call patterns, payment approval instructions. High in hidden text and metadata, low in visible text | low, high | [OWASP LLM01](https://owasp.org/www-project-top-10-for-large-language-model-applications/) |
 
 ### Configuration
 
@@ -137,6 +208,8 @@ Each rule has a page in [docs/rules/](https://github.com/pablodt00/filevet/tree/
 | `FILEVET_CLAMD` | Address of `clamd`: `unix:/path/clamd.sock` or `tcp:host:port`. Without it, ClamAV isn't used |
 | `FILEVET_YARA_RULES` | Directories of extra `.yar` files, separated by `:` |
 | `FILEVET_XSD_DIR` | Directory of ISO 20022 XSDs, one `<message>.xsd` per version, such as `camt.053.001.08.xsd` |
+
+The REST API has its own settings, listed in [docs/api.md](https://github.com/pablodt00/filevet/blob/master/docs/api.md#configuration).
 
 `filevet scan --context context.yaml` adds what you already know: the IBANs on record for your suppliers, the PDF producers your banks use, and the certificates you trust for signatures. The format is in [docs/integrity.md](https://github.com/pablodt00/filevet/blob/master/docs/integrity.md#context-file). The context file is never logged or copied into the report.
 
@@ -153,14 +226,14 @@ The synthetic test corpus in `tests/corpus/cases/` has one case per threat and p
 - It doesn't replace antivirus or EDR, email security, or human review of high-value payments.
 - Integrity checks only see traces of editing. A document forged from scratch, or flattened into a new PDF, looks clean to them. Scanned images aren't read.
 - PDF signatures are checked offline, against the trust roots you supply, without revocation data.
-- Content aimed at AI pipelines isn't detected yet (planned for v0.3).
+- Hidden-content checks assume a white page and estimate glyph positions, so text hidden by a dark vector shape, or made unreadable in a way the rules don't model, gets through. The prompt injection patterns are heuristics in English and Spanish only.
 - It doesn't analyze network traffic, attribute malware to families, or store scanned files.
 
 The full scope is in [docs/SCOPE.md](https://github.com/pablodt00/filevet/blob/master/docs/SCOPE.md).
 
 ## Roadmap
 
-Work is split into phases, each tracked as a [milestone](https://github.com/pablodt00/filevet/milestones): foundations, MVP (v0.1), integrity checks (v0.2), platform features such as a REST API and policy engine (v0.3), and hardening for v1.0.
+Work is split into phases, each tracked as a [milestone](https://github.com/pablodt00/filevet/milestones): foundations, MVP, integrity checks, platform features (the REST API, policy engine and AI-ingestion checks), and hardening for v1.0.
 
 ## Contributing
 

@@ -1,7 +1,7 @@
 IMAGE ?= filevet:test
 SAMPLES := tmp-samples
 
-.PHONY: lint typecheck test build docker smoke
+.PHONY: lint typecheck test build docker smoke corpus
 
 lint:
 	uv run ruff check .
@@ -16,6 +16,9 @@ test:
 
 build:
 	uv build
+
+corpus:
+	uv run python -I tests/corpus/materialize.py
 
 docker:
 	docker build -t $(IMAGE) .

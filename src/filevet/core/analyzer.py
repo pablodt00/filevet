@@ -1,10 +1,12 @@
 from importlib.metadata import entry_points
+from pathlib import Path
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
 from filevet.core.artifact import Artifact
 from filevet.core.finding import Finding
+from filevet.core.identify import TYPES
 from filevet.core.limits import Limits
 
 
@@ -56,3 +58,10 @@ class Analyzer(Protocol):
 def load_analyzers() -> list[Analyzer]:
     found = sorted(entry_points(group="filevet.analyzers"), key=lambda ep: ep.name)
     return [ep.load()() for ep in found]
+
+
+def supported_types(analyzer: Analyzer) -> list[str]:
+    probe = Artifact(
+        name="", size=0, sha256="", md5="", declared_type=None, detected_type="", path=Path()
+    )
+    return [t for t in TYPES if analyzer.supports(probe.model_copy(update={"detected_type": t}))]

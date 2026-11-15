@@ -1,0 +1,16 @@
+policy_version: 1
+name: ai-ingestion
+rules:
+  - match: { severity: [critical, high] }
+    action: block
+  - match: { rule_id: [ai.hidden_text, ai.metadata_payload, ai.unicode_smuggling] }
+    action: block
+  - match: { rule_id: ai.hidden_text_office, severity: medium }
+    action: block
+  - match: { rule_id: "ai.*" }
+    action: review
+  - match: { rule_id: format.iso20022_schema }
+    action: allow
+  - match: { severity: medium }
+    action: review
+default_action: pass_with_findings

@@ -11,6 +11,7 @@ REF = re.compile(rb"(\d+)\s+\d+\s+R\b")
 MAX_OBJECTS = 100_000
 MAX_DEPTH = 32
 MAX_OPS = 2_000_000
+MAX_IMAGES = 1000
 WHITE = 0.95
 
 
@@ -30,6 +31,9 @@ class Text:
     font: str
     text: str
     order: int
+    mode: int = 0
+    white: bool = False
+    alpha: float = 1.0
 
 
 @dataclass
@@ -48,6 +52,8 @@ class Page:
     texts: list[Text] = field(default_factory=list)
     boxes: list[Box] = field(default_factory=list)
     fonts: dict[str, str] = field(default_factory=dict)
+    images: list[Box] = field(default_factory=list)
+    box: tuple[float, float, float, float] | None = None
 
 
 class Pdf:
@@ -126,8 +132,21 @@ class Pdf:
             content = b"\n".join(
                 self.decode(objs[ref]) for ref in refs(objs[num].body, b"Contents") if ref in objs
             )
-            maps = {key: self._cmap(objs, ref) for key, ref in self._font_refs(objs, num).items()}
-            _interpret(content, page, maps)
+            maps = {
+                key: self._cmap(objs, ref) for key, ref in self._refs(objs, num, b"Font").items()
+            }
+            states = {
+                key: alpha
+                for key, ref in self._refs(objs, num, b"ExtGState").items()
+                if ref in objs and (alpha := number(objs[ref].body, b"ca")) is not None
+            }
+            images = {
+                key
+                for key, ref in self._refs(objs, num, b"XObject").items()
+                if ref in objs and name(objs[ref].body, b"Subtype") == b"Image"
+            }
+            page.box = self._page_box(objs, num)
+            _interpret(content, page, maps, states, images)
             pages.append(page)
         return pages
 
@@ -162,9 +181,27 @@ class Pdf:
             num = parent
         return b""
 
-    def _font_refs(self, objs: dict[int, Obj], num: int) -> dict[str, int]:
+    def _page_box(self, objs: dict[int, Obj], num: int) -> tuple[float, float, float, float] | None:
+        for _ in range(MAX_DEPTH):
+            body = objs[num].body if num in objs else b""
+            for key in (b"CropBox", b"MediaBox"):
+                match = re.search(rb"/" + key + rb"\s*\[([^\]]*)\]", body)
+                values = match[1].split() if match else []
+                if len(values) == 4:
+                    try:
+                        x0, y0, x1, y1 = (float(v) for v in values)
+                    except ValueError:
+                        continue
+                    return min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)
+            parent = ref(body, b"Parent")
+            if parent is None:
+                return None
+            num = parent
+        return None
+
+    def _refs(self, objs: dict[int, Obj], num: int, kind: bytes) -> dict[str, int]:
         resources = self._resources(objs, num)
-        match = re.search(rb"/Font\s*(?:(\d+)\s+\d+\s+R|<<(.*?)>>)", resources, re.S)
+        match = re.search(rb"/" + kind + rb"\s*(?:(\d+)\s+\d+\s+R|<<(.*?)>>)", resources, re.S)
         if match is None:
             return {}
         table = objs[int(match[1])].body if match[1] and int(match[1]) in objs else match[2] or b""
@@ -173,7 +210,7 @@ class Pdf:
 
     def _fonts(self, objs: dict[int, Obj], num: int) -> dict[str, str]:
         fonts = {}
-        for key, target in self._font_refs(objs, num).items():
+        for key, target in self._refs(objs, num, b"Font").items():
             base = name(objs[target].body, b"BaseFont") if target in objs else None
             fonts[key] = (base or b"").decode("latin-1")
         return fonts
@@ -182,11 +219,14 @@ class Pdf:
         target = ref(objs[num].body, b"ToUnicode") if num in objs else None
         return parse_cmap(self.decode(objs[target])) if target in objs else {}
 
-    def info(self, revision: int) -> dict[str, str]:
+    def info(
+        self,
+        revision: int,
+        keys: Sequence[bytes] = (b"Producer", b"Creator", b"CreationDate", b"ModDate"),
+    ) -> dict[str, str]:
         objs = self.objects(revision)
         target = self.trailer_ref(revision, b"Info")
         body = objs[target].body if target in objs else b""
-        keys = (b"Producer", b"Creator", b"CreationDate", b"ModDate")
         found = {key.decode(): string(body, key) for key in keys}
         return {key: value for key, value in found.items() if value}
 
@@ -373,9 +413,15 @@ def _mul(m: Matrix, n: Matrix) -> Matrix:
     )
 
 
-def _interpret(content: bytes, page: Page, cmaps: dict[str, dict[bytes, str]]) -> None:
-    ctm, white = IDENTITY, False
-    saved: list[tuple[Matrix, bool]] = []
+def _interpret(
+    content: bytes,
+    page: Page,
+    cmaps: dict[str, dict[bytes, str]],
+    states: dict[str, float] | None = None,
+    images: set[str] | None = None,
+) -> None:
+    ctm, white, alpha, mode = IDENTITY, False, 1.0, 0
+    saved: list[tuple[Matrix, bool, float, int]] = []
     tm = tlm = IDENTITY
     font, size, leading = "", 0.0, 0.0
     operands: list[object] = []
@@ -402,7 +448,19 @@ def _interpret(content: bytes, page: Page, cmaps: dict[str, dict[bytes, str]]) -
         if text.strip():
             order += 1
             page.texts.append(
-                Text(page.number, full[4], full[5], width, scale * size, font, text, order)
+                Text(
+                    page.number,
+                    full[4],
+                    full[5],
+                    width,
+                    scale * size,
+                    font,
+                    text,
+                    order,
+                    mode,
+                    white,
+                    alpha,
+                )
             )
         tm = _mul((1, 0, 0, 1, advance, 0), tm)
 
@@ -422,9 +480,24 @@ def _interpret(content: bytes, page: Page, cmaps: dict[str, dict[bytes, str]]) -
         op = str(value)
         nums = [v for v in operands if isinstance(v, float)]
         if op == "q":
-            saved.append((ctm, white))
+            saved.append((ctm, white, alpha, mode))
         elif op == "Q" and saved:
-            ctm, white = saved.pop()
+            ctm, white, alpha, mode = saved.pop()
+        elif op == "Tr" and nums:
+            mode = int(nums[0])
+        elif op == "gs" and operands and isinstance(operands[0], str):
+            alpha = (states or {}).get(operands[0], alpha)
+        elif (
+            op == "Do"
+            and operands
+            and operands[0] in (images or set())
+            and len(page.images) < MAX_IMAGES
+        ):
+            x0, y0 = _point(ctm, 0, 0)
+            x1, y1 = _point(ctm, 1, 1)
+            order += 1
+            box = Box(page.number, min(x0, x1), min(y0, y1), abs(x1 - x0), abs(y1 - y0), order)
+            page.images.append(box)
         elif op == "cm" and len(nums) == 6:
             ctm = _mul((nums[0], nums[1], nums[2], nums[3], nums[4], nums[5]), ctm)
         elif op in {"rg", "g", "sc", "scn"} and nums:

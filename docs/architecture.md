@@ -1,6 +1,6 @@
 # Architecture
 
-This is the design as built so far. The pipeline and contracts are in `src/filevet/core/`, the analyzers in `src/filevet/analyzers/`.
+This is the design as built so far. The pipeline and contracts are in `src/filevet/core/`, the analyzers in `src/filevet/analyzers/`, the verdict policies in `src/filevet/policies/`, and the CLI and REST API in `src/filevet/interfaces/`.
 
 ## Pipeline
 
@@ -15,7 +15,7 @@ flowchart LR
     W1 & W2 & W3 -- findings --> Aggregate
     W1 & W2 & W3 -- extracted children --> Recurse
     Recurse[Recurse<br/>depth, count and size limits] --> Identify
-    Aggregate[Aggregate<br/>report and verdict] --> Report[Report JSON]
+    Aggregate[Aggregate<br/>findings] --> Policy[Policy<br/>overrides, suppressions, verdict] --> Report[Report JSON]
     Aggregate --> Cleanup[Cleanup<br/>delete temp files]
 ```
 
@@ -23,8 +23,9 @@ flowchart LR
 2. **Identify** detects the type from magic bytes with the built-in signature table in `core/identify.py` (see [ADR 9](adr/0009-built-in-type-signatures.md)), and takes the declared type from the extension. If the two contradict each other, `basic.type_mismatch` reports it.
 3. **Dispatch** runs every analyzer that supports the artifact, each in its own worker.
 4. **Recurse** feeds extracted children (archive entries, PDF attachments, embedded OLE objects) back into Identify, within `max_depth`, `max_children` and `max_total_expanded_bytes`.
-5. **Aggregate** builds the report: artifacts, findings, analyzer runs and summary counts. Until the policy engine lands in Phase 3, the verdict follows the highest severity: `high` or `critical` blocks, `medium` needs review, anything lower passes. When a recursion limit is hit, the rest of the extracted content is skipped and the pipeline adds one `pipeline.limit_exceeded` finding (severity `high`) per limit.
-6. **Cleanup** always deletes temp files, including after errors.
+5. **Aggregate** collects artifacts, findings and analyzer runs. When a recursion limit is hit, the rest of the extracted content is skipped and the pipeline adds one `pipeline.limit_exceeded` finding (severity `high`) per limit.
+6. **Policy** builds the report from them: it applies severity overrides, moves suppressed findings aside, and sets the verdict (`block`, `review`, `pass_with_findings` or `pass`) together with the rule that decided it. See [policies.md](policies.md).
+7. **Cleanup** always deletes temp files, including after errors.
 
 ## Core contracts
 
@@ -61,7 +62,9 @@ This is isolation v0. Phase 4 replaces it with a `Sandbox` interface and stronge
 
 ## Built-in analyzers
 
-Analyzers are grouped in families that match their rule ID prefix: `basic`, `malware`, `parser`, `format` and `integrity`. The integrity analyzers share a raw PDF reader (`analyzers/integrity/pdf.py`) and the financial entity extractor in `core/extract_finance.py`. They're described in [integrity.md](integrity.md). Some of them also act as format handlers and return children for the pipeline to scan:
+Analyzers are grouped in families that match their rule ID prefix: `basic`, `malware`, `parser`, `format`, `integrity` and `ai`. The integrity and AI analyzers share a raw PDF reader (`core/pdf.py`). The integrity analyzers also use the financial entity extractor in `core/extract_finance.py`, and are described in [integrity.md](integrity.md).
+
+`ai.hidden_content` reads text through `core/extract_text.py`, which turns a PDF, OOXML file or text file into runs of text, each marked as body, metadata or comment and with the reason it's hidden, if it is. The PDF reader records each text run's rendering mode, fill colour and opacity, and where images are drawn, so the extractor can tell invisible, white, tiny, off-page and covered text apart from an OCR layer over a scan. `filevet extract` runs the same extractor in an isolated worker and prints only the visible runs with `--visible-only`. Some of them also act as format handlers and return children for the pipeline to scan:
 
 | Analyzer | Extracts |
 | --- | --- |
@@ -89,3 +92,10 @@ Built-in analyzers register the same way as third-party ones, so a separate pack
 ## Decisions
 
 The reasons behind these choices are recorded in [adr/](adr/).
+
+## Interfaces
+
+- CLI (`interfaces/cli.py`): `scan`, `extract`, `policy test`, `serve`, `worker` and the informational commands. Output formats (SARIF, JUnit XML, Markdown) are in `interfaces/formats.py`.
+- Library: `filevet.scan`, `filevet.ascan`, `filevet.extract_text` and `filevet.Policy`. `ascan` runs the scan in a thread, so the event loop isn't blocked.
+- REST API (`interfaces/api.py`, FastAPI): small uploads are scanned in the request, larger ones are queued. The queue (`interfaces/jobs.py`) is a small `Backend` protocol with a Redis implementation for production and an in-memory one for development ([ADR 12](adr/0012-rest-api-dependencies.md)). Queued uploads are encrypted with Fernet. Workers run the same pipeline, so the isolation model is the same for every interface. Details are in [api.md](api.md).
+- LLM second opinion (`filevet/llm.py`): an optional verifier found through the `filevet.llm_verifiers` entry point group. It sees one `ai.*` finding at a time, can only raise its confidence, and is never called unless `--llm-verify` names it.

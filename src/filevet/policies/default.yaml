@@ -1,0 +1,10 @@
+policy_version: 1
+name: default
+rules:
+  - match: { severity: [critical, high] }
+    action: block
+  - match: { rule_id: format.iso20022_schema }
+    action: allow
+  - match: { severity: medium }
+    action: review
+default_action: pass_with_findings

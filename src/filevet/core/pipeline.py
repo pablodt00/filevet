@@ -18,38 +18,36 @@ from filevet.core.analyzer import (
     Analyzer,
     AnalyzerResult,
     Expected,
+    ExtractedFile,
     load_analyzers,
 )
 from filevet.core.artifact import Artifact
 from filevet.core.errors import ScanError
+from filevet.core.extract_text import runs, visible
 from filevet.core.finding import Finding, Severity
 from filevet.core.identify import SNIFF_BYTES, declared_type, detect_type
 from filevet.core.limits import DEFAULT_LIMITS, Limits
 from filevet.core.report import AnalyzerRun, Report, Status
+from filevet.policies import Policy, Suppression
 
 log = logging.getLogger("filevet")
 _mp = multiprocessing.get_context("fork")
 
 
 def scan(
-    source: Path | bytes,
+    source: str | Path | bytes,
     limits: Limits = DEFAULT_LIMITS,
     analyzers: Sequence[Analyzer] | None = None,
     *,
     expected: Expected | None = None,
     mask: bool = True,
+    policy: Policy | None = None,
+    suppressions: Sequence[Suppression] = (),
+    name: str = "",
 ) -> Report:
     if analyzers is None:
         analyzers = load_analyzers()
-    if isinstance(source, Path):
-        with source.open("rb") as f:
-            data = f.read(limits.max_input_bytes + 1)
-        name = source.name
-    else:
-        data, name = source, ""
-    if len(data) > limits.max_input_bytes:
-        raise ScanError(f"input is larger than the {limits.max_input_bytes} byte limit")
-
+    data, name = _read(source, limits, name)
     ctx = AnalysisContext(limits=limits, expected=expected or Expected(), mask=mask)
     artifacts: list[Artifact] = []
     findings: list[Finding] = []
@@ -81,7 +79,51 @@ def scan(
                         break
                     expanded += len(child.data)
                     pending.append(_ingest(Path(tmp), child.name, child.data, artifact))
-    return Report(artifacts=artifacts, findings=findings, analyzer_runs=runs)
+    return (policy or Policy.load("default")).apply(artifacts, findings, runs, suppressions)
+
+
+def extract_text(
+    source: str | Path | bytes, limits: Limits = DEFAULT_LIMITS, *, visible_only: bool = False
+) -> str:
+    data, name = _read(source, limits, "")
+    with tempfile.TemporaryDirectory(prefix="filevet-") as tmp:
+        artifact = _ingest(Path(tmp), name, data, None)
+        status, result, error = _isolated(
+            _TextExtractor(visible_only), artifact, AnalysisContext(limits=limits)
+        )
+    if status != "ok" or not result.children:
+        raise ScanError(f"text extraction failed: {status} {error or ''}".strip())
+    return result.children[0].data.decode()
+
+
+class _TextExtractor:
+    name = "pipeline.extract_text"
+    version = "0.1.0"
+
+    def __init__(self, visible_only: bool) -> None:
+        self.visible_only = visible_only
+
+    def supports(self, artifact: Artifact) -> bool:
+        return True
+
+    def analyze(self, artifact: Artifact, ctx: AnalysisContext) -> AnalyzerResult:
+        data = artifact.read(ctx.limits.max_input_bytes)
+        found = runs(data, artifact.detected_type, ctx.limits.max_total_expanded_bytes)
+        text = visible(found) if self.visible_only else "\n".join(r.text for r in found)
+        return AnalyzerResult(children=[ExtractedFile(name="text", data=text.encode())])
+
+
+def _read(source: str | Path | bytes, limits: Limits, name: str) -> tuple[bytes, str]:
+    if isinstance(source, bytes):
+        data = source
+    else:
+        path = Path(source)
+        with path.open("rb") as f:
+            data = f.read(limits.max_input_bytes + 1)
+        name = path.name
+    if len(data) > limits.max_input_bytes:
+        raise ScanError(f"input is larger than the {limits.max_input_bytes} byte limit")
+    return data, name
 
 
 def _ingest(tmp: Path, name: str, data: bytes, parent: Artifact | None) -> Artifact:

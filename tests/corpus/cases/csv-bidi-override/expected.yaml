@@ -1,0 +1,9 @@
+generator: csv_rows
+args:
+  rows:
+  - - Reference
+    - Amount
+  - - "INV\u202E4321"
+    - '100.00'
+must_find:
+- ai.unicode_smuggling

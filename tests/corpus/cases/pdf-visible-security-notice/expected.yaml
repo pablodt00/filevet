@@ -1,0 +1,11 @@
+generator: pdf
+args:
+  text: 'Security notice
+
+    Attackers may write ignore previous instructions in a document.
+
+    Report such files.'
+must_find: []
+must_not_find:
+- ai.hidden_text
+max_severity: low

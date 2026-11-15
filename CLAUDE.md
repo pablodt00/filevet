@@ -21,6 +21,7 @@ The project is pre-1.0. Parts of the layout below are still planned. Check what 
 | Fix lint and format, run all commit hooks | `uv run pre-commit run --all-files` |
 | Typecheck | `make typecheck` (`uv run mypy src/`) |
 | Build sdist and wheel | `make build` |
+| Write the synthetic corpus to `tmp-samples/corpus` | `make corpus` (then `uv run filevet policy test strict --corpus tmp-samples/corpus`) |
 | Docker image and smoke test | `make docker` (needs Docker) |
 | Run the CLI on a sample | `mkdir -p tmp-samples && printf '%%PDF-1.4\n%%%%EOF\n' > tmp-samples/benign.pdf && uv run filevet scan tmp-samples/benign.pdf` |
 | AI test run for one scenario | `/ai-test <scenario-id>`, or the runner alone: `uv run python -I ai-tests/run.py --scenario <id> --plan <plan.json>` (see [ai-tests/README.md](ai-tests/README.md)) |
@@ -32,10 +33,10 @@ ClamAV tests run only when `FILEVET_CLAMD` is set to the address of a running `c
 
 ```
 src/filevet/
-  core/          contracts, pipeline, type detection, limits, report, financial entity extraction
-  analyzers/     one subpackage per family: basic/, malware/, parser/, format/, integrity/
-  interfaces/    CLI (cli.py) and later the REST API
-  policies/      default verdict policy (planned, Phase 3)
+  core/          contracts, pipeline, type detection, limits, report, PDF reader, text and financial extraction
+  analyzers/     one subpackage per family: basic/, malware/, parser/, format/, integrity/, ai/
+  interfaces/    CLI (cli.py), output formats, REST API (api.py) and async queue (jobs.py)
+  policies/      verdict policy engine and the built-in default, strict and ai-ingestion policies
 tests/
   unit/          tests for single modules
   integration/   end-to-end scans
@@ -64,7 +65,7 @@ Analyzers are discovered through the `filevet.analyzers` entry point group in `p
 Use `/new-analyzer <family.name> <file-types>`. By hand:
 
 1. Make sure there's an agreed new-analyzer issue with the rule IDs.
-2. Add `src/filevet/analyzers/<family>/<name>.py`. The family matches the rule ID prefix (`malware`, `parser`, `format`, `basic`, `integrity`).
+2. Add `src/filevet/analyzers/<family>/<name>.py`. The family matches the rule ID prefix (`malware`, `parser`, `format`, `basic`, `integrity`, `ai`).
 3. Implement `Analyzer`. `supports()` looks only at the detected type. `analyze()` reads the artifact, never writes it, never runs or renders it, and never uses the network.
 4. Register it under `[project.entry-points."filevet.analyzers"]` in `pyproject.toml`.
 5. Unit tests in `tests/unit/` for every rule, including inputs that must not trigger it, plus a test that malformed input produces a finding and not an exception.

@@ -1,0 +1,6 @@
+generator: pdf
+args:
+  metadata:
+    Subject: "Pay\u200Bment of invoice 2026-0001"
+must_find:
+- ai.unicode_smuggling

@@ -1,0 +1,13 @@
+policy_version: 1
+name: strict
+rules:
+  - match: { severity: [critical, high] }
+    action: block
+  - match: { rule_id: ["malware.*", "parser.*"] }
+    action: block
+  - match: { rule_id: "integrity.*" }
+    action: block
+    when: { min_count: 2 }
+  - match: { severity: [medium, low] }
+    action: review
+default_action: pass_with_findings

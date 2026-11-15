@@ -1,0 +1,14 @@
+generator: csv_rows
+args:
+  rows:
+  - - Payee
+    - City
+  - - "Jos\xE9 Pe\xF1a M\xFCller"
+    - "M\xFCnchen"
+  - - "\u0391\u03B8\u03B7\u03BD\u03B1 \u039C\u03B5\u03BB\u03B9"
+    - "\u0391\u03B8\u03B7\u03BD\u03B1"
+  - - "\u041E\u041E\u041E \u0420\u043E\u043C\u0430\u0448\u043A\u0430"
+    - "\u041C\u043E\u0441\u043A\u0432\u0430"
+must_find: []
+must_not_find:
+- ai.unicode_smuggling

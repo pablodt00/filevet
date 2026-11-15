@@ -3,11 +3,11 @@ from pathlib import Path
 import pytest
 
 from filevet.analyzers.integrity import pdf_tampering
-from filevet.analyzers.integrity.pdf import Pdf, lines, parse_cmap, string, tokens
 from filevet.analyzers.integrity.pdf_tampering import PdfTampering
 from filevet.core.analyzer import AnalysisContext, Expected, Party
 from filevet.core.finding import Severity
 from filevet.core.limits import DEFAULT_LIMITS
+from filevet.core.pdf import Pdf, lines, parse_cmap, string, tokens
 from tests.corpus.generators import fake_iban, pdf, signed_pdf
 from tests.helpers import artifact, rules, run
 

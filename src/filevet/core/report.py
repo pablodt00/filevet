@@ -1,13 +1,13 @@
+from importlib.metadata import version
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from filevet import __version__
 from filevet.core.artifact import Artifact
 from filevet.core.finding import Finding, Severity
 
-Verdict = Literal["pass", "review", "block"]
+Verdict = Literal["pass", "pass_with_findings", "review", "block"]
 Status = Literal["ok", "error", "timeout"]
 
 
@@ -22,13 +22,27 @@ class AnalyzerRun(BaseModel):
     error: str | None = None
 
 
+class Decision(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    policy: str
+    verdict: Verdict
+    rule: int | None = Field(description="Index of the policy rule that set the verdict")
+    rule_ids: list[str] = Field(description="Rule IDs of the findings that set the verdict")
+    reason: str
+
+
 class Report(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    filevet_version: str = Field(default_factory=lambda: __version__)
+    schema_version: Literal[2] = 2
+    filevet_version: str = Field(default_factory=lambda: version("filevet"))
     artifacts: list[Artifact]
     findings: list[Finding]
+    suppressed: list[Finding] = []
     analyzer_runs: list[AnalyzerRun]
+    warnings: list[str] = []
+    decision: Decision
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -41,7 +55,4 @@ class Report(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def verdict(self) -> Verdict:
-        top = max((f.severity.rank for f in self.findings), default=-1)
-        if top >= Severity.HIGH.rank:
-            return "block"
-        return "review" if top == Severity.MEDIUM.rank else "pass"
+        return self.decision.verdict

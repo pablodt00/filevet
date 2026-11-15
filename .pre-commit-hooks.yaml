@@ -1,0 +1,7 @@
+- id: filevet
+  name: filevet
+  description: Scan committed documents for active content, parser attacks and hidden text
+  entry: filevet scan --format table --fail-on block --
+  language: python
+  files: (?i)\.(pdf|csv|txt|xml|xlsx|xlsm|xls|docx|docm|doc|zip)$
+  require_serial: true
