@@ -10,7 +10,7 @@ from filevet.core.report import Report
 Scanned = Sequence[tuple[str, Report]]
 RULES_URL = "https://github.com/pablodt00/filevet/blob/master/docs/rules/{}.md"
 SARIF_LEVEL = {"critical": "error", "high": "error", "medium": "warning"}
-XML_INVALID = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
+XML_INVALID = dict.fromkeys([*range(0x09), 0x0B, 0x0C, *range(0x0E, 0x20), 0xFFFE, 0xFFFF])
 MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+\-.!|~])")
 
 
@@ -112,7 +112,7 @@ def _message(f: Finding) -> str:
 
 
 def _xml(text: str) -> str:
-    return html.escape(XML_INVALID.sub("", text), quote=True)
+    return html.escape(text.translate(XML_INVALID), quote=True)
 
 
 def _md(text: str) -> str:

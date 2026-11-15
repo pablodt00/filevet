@@ -67,3 +67,7 @@ def test_fails() -> None:
     assert formats.fails(report, "high") and formats.fails(report, "block")
     assert not formats.fails(report, "critical")
     assert not formats.fails(_report(), "pass_with_findings")
+
+
+def test_xml_drops_only_forbidden_characters() -> None:
+    assert formats._xml("a\x00b\x08c\x0bd\x1fe\tf\ng\r\ufffe<") == "abcde\tf\ng\r&lt;"
