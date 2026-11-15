@@ -10,7 +10,6 @@ from xml.etree.ElementTree import Element, ParseError
 from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
-from filevet.analyzers.integrity.pdf import Pdf, lines
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult, Party
 from filevet.core.artifact import Artifact
 from filevet.core.extract_finance import (
@@ -33,6 +32,7 @@ from filevet.core.extract_finance import (
 )
 from filevet.core.finding import Finding, Location, Severity
 from filevet.core.identify import iso20022_message
+from filevet.core.pdf import Pdf, lines
 
 MAX_FINDINGS = 50
 BOOKING_TOLERANCE = timedelta(days=7)

@@ -21,6 +21,8 @@ from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 from pyhanko.sign import signers
 from pyhanko_certvalidator.registry import SimpleCertificateStore
 
+from filevet.core.extract_finance import column
+
 __all__ = [
     "bank_statement_csv",
     "camt053",
@@ -66,7 +68,11 @@ def csv_rows(
     delimiter: str = ",",
     quote_all: bool = False,
     encoding: str = "utf-8",
+    tagged: str | None = None,
 ) -> Path:
+    if tagged is not None:
+        hidden = "".join(chr(0xE0000 + ord(c)) for c in tagged)
+        rows = [*rows[:-1], [*rows[-1][:-1], rows[-1][-1] + hidden]]
     buf = io.StringIO()
     quoting = csv.QUOTE_ALL if quote_all else csv.QUOTE_MINIMAL
     csv.writer(buf, delimiter=delimiter, quoting=quoting).writerows(rows)
@@ -499,6 +505,10 @@ def pdf(
     updates: list[str] | None = None,
     update_producer: str | None = None,
     form_fill: str | None = None,
+    hidden_text: str | None = None,
+    hidden: str = "invisible",
+    ocr: bool = False,
+    metadata: dict[str, str] | None = None,
 ) -> Path:
     objects: list[bytes | None] = [b""] * 5
 
@@ -545,9 +555,10 @@ def pdf(
     if annots:
         page_extra += f" /Annots [{' '.join(annots)}]"
     info = None
-    if producer or created or modified:
-        fields = (("Producer", producer), ("CreationDate", created), ("ModDate", modified))
-        info = add("<< " + " ".join(f"/{k} {_pdf_string(v)}" for k, v in fields if v) + " >>")
+    if producer or created or modified or metadata:
+        fields = [("Producer", producer), ("CreationDate", created), ("ModDate", modified)]
+        fields += list((metadata or {}).items())
+        info = add("<< " + " ".join(f"/{k} {_pdf_text(v)}" for k, v in fields if v) + " >>")
     if xmp_producer is not None:
         xmp = (
             '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf='
@@ -562,7 +573,23 @@ def pdf(
         ref = add("<< /Type /Font /Subtype /Type1 /BaseFont /GHIJKL+Helvetica >>")
         fonts += f" /F2 {ref} 0 R"
 
+    resources = ""
+    if ocr or hidden == "behind_image":
+        image = add(
+            _pdf_stream(
+                "/Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray "
+                "/BitsPerComponent 8",
+                b"\xff",
+            )
+        )
+        resources += f" /XObject << /Im1 {image} 0 R >>"
+    if hidden == "transparent":
+        resources += f" /ExtGState << /GS1 {add('<< /Type /ExtGState /ca 0 >>')} 0 R >>"
     content = _pdf_content(text, cover_line, cover_text, retyped_line)
+    if ocr:
+        content = b"q 612 0 0 792 0 0 cm /Im1 Do Q " + content.replace(b"BT ", b"BT 3 Tr ", 1)
+    if hidden_text is not None:
+        content += b" " + _pdf_hidden(hidden_text, hidden)
     if filter_chain:
         encoded = binascii.hexlify(base64.a85encode(zlib.compress(content)) + b"~>") + b">"
         chain = "/Filter [/ASCIIHexDecode /ASCII85Decode /FlateDecode]"
@@ -574,7 +601,7 @@ def pdf(
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         (
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
-            f"/Resources << /Font << {fonts} >> >> /Contents 5 0 R{page_extra} >>"
+            f"/Resources << /Font << {fonts} >>{resources} >> /Contents 5 0 R{page_extra} >>"
         ).encode(),
         b"<< /Type /Font /Subtype /Type1 /BaseFont /"
         + (b"ABCDEF+" if retyped_line is not None else b"")
@@ -619,6 +646,27 @@ def pdf(
         }
         body = _pdf_update(body, changed, info)
     return _write(out, name, body)
+
+
+def _pdf_text(text: str) -> str:
+    try:
+        text.encode("latin-1")
+    except UnicodeEncodeError:
+        return "<FEFF" + text.encode("utf-16-be").hex().upper() + ">"
+    return _pdf_string(text)
+
+
+def _pdf_hidden(text: str, how: str) -> bytes:
+    shown = f"/F1 12 Tf 72 500 Td {_pdf_string(text)} Tj"
+    drawn = {
+        "invisible": f"BT 3 Tr {shown} ET",
+        "white": f"q 1 1 1 rg BT {shown} ET Q",
+        "tiny": f"BT /F1 0.5 Tf 72 500 Td {_pdf_string(text)} Tj ET",
+        "offpage": f"BT /F1 12 Tf 72 900 Td {_pdf_string(text)} Tj ET",
+        "transparent": f"q /GS1 gs BT {shown} ET Q",
+        "behind_image": f"BT {shown} ET q 400 0 0 30 60 490 cm /Im1 Do Q",
+    }[how]
+    return drawn.encode("latin-1")
 
 
 def _pdf_content(
@@ -772,17 +820,46 @@ def xlsx(
     macro_sheet: bool = False,
     dde_link: bool = False,
     embedded: dict[str, list[str]] | None = None,
+    hidden_sheet: list[list[str]] | None = None,
+    hidden_rows: list[int] | None = None,
+    hidden_columns: list[int] | None = None,
+    white_row: int | None = None,
 ) -> Path:
     strings: list[str] | None = [] if shared_strings else None
-    rows = "".join("<row>" + "".join(_cell(v, strings) for v in row) + "</row>" for row in cells)
+    rows = ""
+    for number, row in enumerate(cells, 1):
+        attrs = ' hidden="1"' if number in (hidden_rows or []) else ""
+        style = ' s="1"' if number == white_row else ""
+        rows += f'<row r="{number}"{attrs}>'
+        for col, value in enumerate(row, 1):
+            rows += _cell(value, strings).replace("<c", f'<c r="{column(col)}{number}"{style}', 1)
+        rows += "</row>"
+    cols = "".join(f'<col min="{c}" max="{c}" hidden="1"/>' for c in hidden_columns or [])
     workbook_rels = [(f"{_REL}/worksheet", "worksheets/sheet1.xml", False)]
     names = ""
     parts: dict[str, str | bytes] = {
         "_rels/.rels": _rels((f"{_REL}/officeDocument", "xl/workbook.xml", False)),
         "xl/worksheets/sheet1.xml": (
-            f'<worksheet xmlns="{_MAIN}"><sheetData>{rows}</sheetData></worksheet>'
+            f'<worksheet xmlns="{_MAIN}"><cols>{cols}</cols><sheetData>{rows}</sheetData>'
+            "</worksheet>"
         ),
     }
+    sheets = '<sheet name="Sheet1" sheetId="1" r:id="rId1"/>'
+    if hidden_sheet is not None:
+        hidden_rows = "".join(
+            "<row>" + "".join(_cell(v, strings) for v in row) + "</row>" for row in hidden_sheet
+        )
+        parts["xl/worksheets/sheet3.xml"] = (
+            f'<worksheet xmlns="{_MAIN}"><sheetData>{hidden_rows}</sheetData></worksheet>'
+        )
+        workbook_rels.append((f"{_REL}/worksheet", "worksheets/sheet3.xml", False))
+        sheets += f'<sheet name="Notes" sheetId="3" state="hidden" r:id="rId{len(workbook_rels)}"/>'
+    if white_row is not None:
+        parts["xl/styles.xml"] = (
+            f'<styleSheet xmlns="{_MAIN}"><fonts count="2"><font><sz val="11"/></font>'
+            '<font><color rgb="FFFFFFFF"/><sz val="11"/></font></fonts><cellXfs count="2">'
+            '<xf fontId="0"/><xf fontId="1"/></cellXfs></styleSheet>'
+        )
     if strings is not None:
         items = "".join(f'<si><t xml:space="preserve">{escape(s)}</t></si>' for s in strings)
         parts["xl/sharedStrings.xml"] = f'<sst xmlns="{_MAIN}">{items}</sst>'
@@ -828,8 +905,7 @@ def xlsx(
         'vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>',
     )
     parts["xl/workbook.xml"] = (
-        f'<workbook xmlns="{_MAIN}" xmlns:r="{_REL}"><sheets>'
-        f'<sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>{names}</workbook>'
+        f'<workbook xmlns="{_MAIN}" xmlns:r="{_REL}"><sheets>{sheets}</sheets>{names}</workbook>'
     )
     parts["xl/_rels/workbook.xml.rels"] = _rels(*workbook_rels)
     return _write(out, name, _ooxml(parts))
@@ -844,9 +920,17 @@ def docx(
     remote_template: str | None = None,
     hyperlink: str | None = None,
     vba: str | None = None,
+    hidden_text: str | None = None,
+    hidden: str = "vanish",
+    comment: str | None = None,
+    custom_xml: str | None = None,
+    title: str | None = None,
 ) -> Path:
     w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
     runs = f"<w:r><w:t>{escape(text)}</w:t></w:r>"
+    if hidden_text is not None:
+        props = "<w:vanish/>" if hidden == "vanish" else '<w:color w:val="FFFFFF"/>'
+        runs += f"<w:r><w:rPr>{props}</w:rPr><w:t>{escape(hidden_text)}</w:t></w:r>"
     if dde:
         runs += (
             '<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
@@ -879,6 +963,20 @@ def docx(
                 "vbaProject.bin",
                 False,
             )
+        )
+    if comment is not None:
+        parts["word/comments.xml"] = (
+            f'<w:comments xmlns:w="{w}"><w:comment w:id="0" w:author="Reviewer"><w:p><w:r>'
+            f"<w:t>{escape(comment)}</w:t></w:r></w:p></w:comment></w:comments>"
+        )
+        document_rels.append((f"{_REL}/comments", "comments.xml", False))
+    if custom_xml is not None:
+        parts["customXml/item1.xml"] = f"<note>{escape(custom_xml)}</note>"
+    if title is not None:
+        parts["docProps/core.xml"] = (
+            '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/'
+            'metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">'
+            f"<dc:title>{escape(title)}</dc:title></cp:coreProperties>"
         )
     parts["word/_rels/document.xml.rels"] = _rels(*document_rels)
     return _write(out, name, _ooxml(parts))

@@ -1,0 +1,7 @@
+generator: docx
+args:
+  comment: Please check the VAT number before sending.
+must_find: []
+must_not_find:
+- ai.prompt_injection_patterns
+max_severity: info

@@ -7,11 +7,11 @@ from xml.etree.ElementTree import ParseError
 from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
-from filevet.analyzers.integrity.pdf import Box, Page, Pdf, Text, is_type, lines, name, refs
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult
 from filevet.core.artifact import Artifact
 from filevet.core.extract_finance import AMOUNT, DATE, IBAN, mask
 from filevet.core.finding import Finding, Location, Severity
+from filevet.core.pdf import Box, Page, Pdf, Text, is_type, lines, name, refs
 
 MAX_FINDINGS = 10
 MAX_LINES = 20_000

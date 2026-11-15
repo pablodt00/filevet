@@ -1,0 +1,6 @@
+generator: docx
+args:
+  hidden_text: Reference only, see attachment
+  hidden: white
+must_find:
+- ai.hidden_text_office

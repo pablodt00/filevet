@@ -1,13 +1,28 @@
-# Scan a file:  docker compose run --rm filevet scan /in/statement.pdf
-# With ClamAV:  docker compose --profile clamav up -d clamav
-#               docker compose run --rm filevet scan /in/statement.pdf
+# REST API, worker, Redis and ClamAV (see docs/api.md):
+#   export FILEVET_SPOOL_KEY=... FILEVET_API_KEYS=...
+#   docker compose up -d
+# Scan one file with the CLI:
+#   docker compose run --rm filevet scan /in/statement.pdf
+x-filevet: &filevet
+  build: .
+  restart: unless-stopped
+  image: ghcr.io/pablodt00/filevet
+  read_only: true
+  tmpfs: [/tmp]
+  volumes:
+    - clamd-socket:/run/clamav
+
+x-service-env: &service-env
+  FILEVET_CLAMD: unix:/run/clamav/clamd.sock
+  FILEVET_REDIS_URL: redis://redis:6379/0
+  FILEVET_SPOOL_KEY: ${FILEVET_SPOOL_KEY:-}
+  FILEVET_POLICY: ${FILEVET_POLICY:-default}
+
 services:
   filevet:
-    build: .
-    image: ghcr.io/pablodt00/filevet
+    <<: *filevet
+    profiles: [cli]
     network_mode: none
-    read_only: true
-    tmpfs: [/tmp]
     environment:
       FILEVET_CLAMD: unix:/run/clamav/clamd.sock
     volumes:
@@ -18,11 +33,40 @@ services:
         condition: service_healthy
         required: false
 
+  api:
+    <<: *filevet
+    command: [serve, --host, 0.0.0.0, --port, "8000"]
+    ports: ["127.0.0.1:8000:8000"]
+    networks: [default, backend]
+    environment:
+      <<: *service-env
+      FILEVET_API_KEYS: ${FILEVET_API_KEYS:-}
+    depends_on: [redis]
+
+  worker:
+    <<: *filevet
+    command: [worker]
+    networks: [backend]
+    environment: *service-env
+    depends_on:
+      redis:
+        condition: service_started
+      clamav:
+        condition: service_healthy
+
+  redis:
+    image: redis:8-alpine
+    command: [redis-server, --save, "", --appendonly, "no", --maxmemory, 2gb, --maxmemory-policy, noeviction]
+    networks: [backend]
+
   clamav:
     image: clamav/clamav:stable
-    profiles: [clamav]
     volumes:
       - clamd-socket:/tmp
+
+networks:
+  backend:
+    internal: true
 
 volumes:
   clamd-socket:

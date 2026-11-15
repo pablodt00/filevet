@@ -21,9 +21,9 @@ The Makefile runs the same commands as CI, so you can reproduce a failing check 
 ```
 src/filevet/
   core/          contracts (Artifact, Finding, Analyzer), pipeline, type detection, limits, report
-  analyzers/     one subpackage per family: basic/, malware/, parser/, format/
-  interfaces/    CLI (and later the REST API)
-  policies/      default verdict policy
+  analyzers/     one subpackage per family: basic/, malware/, parser/, format/, integrity/, ai/
+  interfaces/    CLI, output formats and the REST API
+  policies/      verdict policies (default, strict, ai-ingestion)
 tests/
   unit/          tests for single modules
   integration/   end-to-end scans

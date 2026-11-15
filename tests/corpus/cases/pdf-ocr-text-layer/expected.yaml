@@ -1,0 +1,12 @@
+generator: pdf
+args:
+  ocr: true
+  text: 'Account statement
+
+    Opening balance 1,000.00 EUR
+
+    Closing balance 1,250.00 EUR'
+must_find: []
+must_not_find:
+- ai.hidden_text
+max_severity: info

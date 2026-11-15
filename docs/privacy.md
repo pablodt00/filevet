@@ -1,6 +1,6 @@
 # Privacy
 
-filevet runs on your own infrastructure and makes no network calls, so files and reports stay with you. Reports can still hold personal data, and the GDPR covers that data if it applies to you. This page lists what a report can contain, so you can decide where to store reports and for how long.
+filevet runs on your own infrastructure and makes no network calls of its own, so files and reports stay with you. The exceptions are the ones you turn on: webhooks send a report to a host you list, and an LLM verifier you install can see findings. Reports can still hold personal data, and the GDPR covers that data if it applies to you. This page lists what a report can contain, so you can decide where to store reports and for how long.
 
 ## What a report contains
 
@@ -21,6 +21,14 @@ The `--context` file holds the IBANs of your suppliers, issuer names and certifi
 ## Logs
 
 Logs hold SHA-256 hashes, analyzer names, rule IDs, statuses and timings. They never contain file contents, evidence or the context file.
+
+## The REST API
+
+Small uploads are scanned in memory and a private temp directory, and nothing is kept once the response is sent. Large uploads wait in Redis, encrypted, until a worker takes them, and are deleted as it does. Results are kept for `FILEVET_RETENTION_S` seconds (one hour by default) and then expire. Webhook bodies hold the full report, including evidence.
+
+## LLM verifiers
+
+`--llm-verify` passes each `ai.*` finding, with its evidence of at most 256 characters, to the verifier you name. What the verifier does with it, including sending it to a model provider, is up to that plugin. No verifier ships with filevet.
 
 ## What to consider
 

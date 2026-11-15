@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -162,3 +163,108 @@ def test_schema(capsys: pytest.CaptureFixture[str]) -> None:
 def test_version(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["version"]) == 0
     assert capsys.readouterr().out.strip() == f"filevet {__version__}"
+
+
+def test_several_paths_give_a_list(
+    benign_pdf: Path, sample_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    exe = generators.disguised(sample_dir, name="invoice.pdf", parts=["pe_stub"])
+    assert cli.main(["scan", str(benign_pdf), str(exe)]) == 2
+    assert [r["verdict"] for r in json.loads(capsys.readouterr().out)] == ["pass", "block"]
+
+
+@pytest.mark.parametrize("fmt", ["sarif", "junit", "markdown", "table"])
+def test_other_formats(fmt: str, benign_pdf: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["scan", str(benign_pdf), "--format", fmt]) == 0
+    assert capsys.readouterr().out.strip()
+
+
+def test_policy_and_fail_on(sample_dir: Path) -> None:
+    path = generators.pdf(sample_dir, uri="https://example.invalid/terms")
+    assert cli.main(["scan", str(path)]) == 0
+    assert cli.main(["scan", str(path), "--policy", "strict"]) == 2
+    assert cli.main(["scan", str(path), "--fail-on", "low"]) == 1
+    assert cli.main(["scan", str(path), "--fail-on", "review"]) == 0
+
+
+def test_suppressions(sample_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = generators.disguised(sample_dir, name="statement.csv", parts=["html"])
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    rules = tmp_path / "suppressions.yaml"
+    entry = "  - {rule_id: basic.type_mismatch, sha256: %s, reason: known, expires: %s}\n"
+    rules.write_text("suppressions:\n" + entry % (sha, "2999-01-01"))
+    assert cli.main(["scan", str(path), "--suppressions", str(rules)]) == 0
+    rules.write_text("suppressions:\n" + entry % (sha, "2000-01-01"))
+    assert cli.main(["scan", str(path), "--suppressions", str(rules)]) == 1
+    assert "expired on 2000-01-01" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["scan", "{pdf}", "--policy", "missing.yaml"],
+        ["scan", "{pdf}", "--policy", "{bad}"],
+        ["scan", "{pdf}", "--suppressions", "{bad}"],
+        ["scan", "{pdf}", "--llm-verify", "nothing-installed"],
+        ["policy", "test", "strict", "--corpus", "{pdf}"],
+        ["extract", "missing.pdf"],
+        ["worker"],
+    ],
+)
+def test_more_usage_errors(
+    argv: list[str], benign_pdf: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("FILEVET_REDIS_URL", raising=False)
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("policy_version: 9\nname: x\n")
+    with pytest.raises(SystemExit) as exc:
+        cli.main([a.format(pdf=benign_pdf, bad=bad) for a in argv])
+    assert exc.value.code == 3
+
+
+def test_policy_test_shows_changes(sample_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    generators.pdf(sample_dir, name="link.pdf", uri="https://example.invalid/terms")
+    generators.pdf(sample_dir, name="plain.pdf")
+    assert cli.main(["policy", "test", "strict", "--corpus", str(sample_dir)]) == 0
+    out = capsys.readouterr().out
+    assert "1 of 2 files change verdict" in out
+    assert "link.pdf" in out
+
+
+def test_extract_visible_only(sample_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = generators.pdf(sample_dir, text="Invoice 2026-0001", hidden_text="secret note")
+    assert cli.main(["extract", str(path), "--visible-only"]) == 0
+    assert capsys.readouterr().out == "Invoice 2026-0001\n"
+    assert cli.main(["extract", str(path)]) == 0
+    assert "secret note" in capsys.readouterr().out
+
+
+def test_policy_schema(capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["schema", "policy"]) == 0
+    assert "Rule" in json.loads(capsys.readouterr().out)["$defs"]
+
+
+def test_library_api(benign_pdf: Path) -> None:
+    import asyncio
+
+    from filevet import Policy, ascan
+    from filevet import scan as top_scan
+
+    assert top_scan(str(benign_pdf), policy=Policy.load("strict")).decision.policy == "strict"
+    assert asyncio.run(ascan(benign_pdf)).verdict == "pass"
+
+
+def test_symlinks_are_refused(benign_pdf: Path, tmp_path: Path) -> None:
+    link = tmp_path / "link.pdf"
+    link.symlink_to(benign_pdf)
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["scan", str(link)])
+    assert exc.value.code == 3
+
+
+def test_paths_after_double_dash_are_not_options(
+    benign_pdf: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "--policy=evil.yaml").write_bytes(benign_pdf.read_bytes())
+    assert cli.main(["scan", "--policy", "strict", "--", "--policy=evil.yaml"]) == 0

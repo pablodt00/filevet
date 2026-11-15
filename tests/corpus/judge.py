@@ -4,7 +4,8 @@ from filevet.core.finding import Severity
 
 
 def judge(report: dict[str, Any], expected: dict[str, Any]) -> bool:
-    if report["verdict"] != expected["verdict"]:
+    verdict = "pass" if report["verdict"] == "pass_with_findings" else report["verdict"]
+    if verdict != expected["verdict"]:
         return False
     wanted = expected.get("must_find", [])
     floor = Severity(expected.get("min_severity", "info")).rank

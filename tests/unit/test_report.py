@@ -6,26 +6,27 @@ import pytest
 
 from filevet.core.finding import Finding
 from filevet.core.report import Report
+from filevet.policies import Policy
 
 SCHEMA = Path(__file__).resolve().parents[2] / "docs" / "schema" / "report.schema.json"
 
 
 def _report(*severities: str) -> Report:
     findings = [Finding(rule_id="basic.test", title="t", severity=s) for s in severities]
-    return Report(artifacts=[], findings=findings, analyzer_runs=[])
+    return Policy.load("default").apply([], findings, [])
 
 
 @pytest.mark.parametrize(
     ("severities", "verdict"),
     [
         ((), "pass"),
-        (("info", "low"), "pass"),
+        (("info", "low"), "pass_with_findings"),
         (("low", "medium"), "review"),
         (("medium", "high"), "block"),
         (("critical",), "block"),
     ],
 )
-def test_verdict_follows_highest_severity(severities: tuple[str, ...], verdict: str) -> None:
+def test_default_policy_follows_highest_severity(severities: tuple[str, ...], verdict: str) -> None:
     assert _report(*severities).verdict == verdict
 
 
