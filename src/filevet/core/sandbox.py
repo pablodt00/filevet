@@ -212,7 +212,7 @@ BACKENDS: dict[str, type[Sandbox]] = {
 def runtime_dirs(path: Sequence[str] | None = None) -> list[str]:
     wanted = {sys.prefix, sys.base_prefix, *(path if path is not None else sys.path)}
     wanted |= {d for d in ("/lib", "/lib64", "/usr/lib", "/usr/lib64") if Path(d).is_dir()}
-    dirs = sorted(str(Path(d).resolve()) for d in wanted if d and Path(d).is_dir())
+    dirs = sorted(str(Path(d).absolute()) for d in wanted if d and Path(d).is_dir())
     return [d for i, d in enumerate(dirs) if not any(d.startswith(p + "/") for p in dirs[:i])]
 
 

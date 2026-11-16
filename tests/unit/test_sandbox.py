@@ -62,6 +62,12 @@ def test_runtime_dirs_keep_only_the_outermost(tmp_path: Path) -> None:
     assert "/etc" not in dirs
 
 
+def test_runtime_dirs_keep_symlinked_paths(tmp_path: Path) -> None:
+    (tmp_path / "usr").mkdir()
+    (tmp_path / "lib64").symlink_to("usr")
+    assert str(tmp_path / "lib64") in runtime_dirs([str(tmp_path / "lib64")])
+
+
 def test_seccomp_allow_list_leaves_out_network_and_process_creation() -> None:
     blocked = {"socket", "connect", "fork", "vfork", "clone3", "ptrace", "mount", "setuid"}
     assert not blocked & set(SYSCALLS)
