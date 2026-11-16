@@ -1,0 +1,101 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- range $component := list "api" "worker" }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "filevet.fullname" $ }}-{{ $component }}
+  labels:
+    {{- include "filevet.labels" $ | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "filevet.selector" (dict "root" $ "component" $component) | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  {{- if eq $component "api" }}
+  ingress:
+    - ports:
+        - {port: 8000, protocol: TCP}
+      {{- with $.Values.networkPolicy.apiFrom }}
+      from:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- else }}
+  ingress: []
+  {{- end }}
+  egress:
+    - ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+    {{- if $.Values.redis.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "filevet.selector" (dict "root" $ "component" "redis") | nindent 14 }}
+      ports:
+        - {port: 6379, protocol: TCP}
+    {{- end }}
+    {{- if $.Values.clamav.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "filevet.selector" (dict "root" $ "component" "clamav") | nindent 14 }}
+      ports:
+        - {port: 3310, protocol: TCP}
+    {{- end }}
+    {{- with $.Values.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+{{- end }}
+{{- if .Values.redis.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "filevet.fullname" . }}-redis
+  labels:
+    {{- include "filevet.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "filevet.selector" (dict "root" . "component" "redis") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: app.kubernetes.io/instance, operator: In, values: [{{ .Release.Name }}]}
+              - {key: app.kubernetes.io/component, operator: In, values: [api, worker]}
+      ports:
+        - {port: 6379, protocol: TCP}
+  egress: []
+---
+{{- end }}
+{{- if .Values.clamav.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "filevet.fullname" . }}-clamav
+  labels:
+    {{- include "filevet.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "filevet.selector" (dict "root" . "component" "clamav") | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: app.kubernetes.io/instance, operator: In, values: [{{ .Release.Name }}]}
+              - {key: app.kubernetes.io/component, operator: In, values: [api, worker]}
+      ports:
+        - {port: 3310, protocol: TCP}
+  egress:
+    - ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+    {{- with .Values.networkPolicy.clamavEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

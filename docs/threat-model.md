@@ -40,9 +40,9 @@ flowchart LR
 
 | Threat | Mitigation |
 | --- | --- |
-| Parser exploits (memory corruption in native libraries, logic bugs) | Each analyzer in its own subprocess, one task per worker; stronger sandbox in Phase 4; fuzzing in Phase 4 |
+| Parser exploits (memory corruption in native libraries, logic bugs) | Each analyzer in its own process, one task per worker; the `nsjail` and `gvisor` backends add namespaces, a seccomp allow-list, a read-only root and dropped privileges, checked by escape tests in CI ([security model](security-model.md)); nightly coverage-guided fuzzing ([fuzzing](fuzzing.md)) |
 | Denial of service: zip bombs, entity expansion, huge or deeply nested structures | Input size limit, per-analyzer timeout and memory cap, recursion depth, child count and expanded-size limits checked while streaming |
-| XXE and network access from parsers | `defusedxml` or `lxml` with entities and network off; no network in the container; network blocked in the Phase 4 sandbox |
+| XXE and network access from parsers | `defusedxml` or `lxml` with entities and network off; no network in the container; no network interfaces in the `nsjail` and `gvisor` sandboxes; a NetworkPolicy that denies worker egress in Kubernetes |
 | Path traversal and symlinks during extraction | Entries are checked before extraction, symlinks are rejected, children are written only inside the private temp directory |
 | Execution of embedded content | filevet never runs, renders or opens a file with an external program |
 | Data leaking through logs or reports | Logs hold hashes, rule IDs and timings only; evidence is truncated and escaped (see [architecture](architecture.md#core-contracts)) |
@@ -57,6 +57,7 @@ flowchart LR
 | Uploads exposed at rest while queued | Encrypted with a key the API and workers share, deleted when a worker takes them, expired after the retention time; Redis runs without persistence in the Compose file |
 | Server-side request forgery through webhooks | Callbacks only to `https` URLs on configured hosts, only when a signing secret is set, and without following redirects |
 | A pull request steering the GitHub Action through file names or symlinks | Paths are passed after `--`, symlinks are skipped by the Action and refused by `filevet scan` |
+| Active content surviving `filevet sanitize` | Sanitizing parses the file inside the sandbox, removes whole classes of content (all actions and annotations, not a list of bad ones), fails closed when it can't parse the file, and always reports what it removed ([sanitize](sanitize.md)) |
 | Injection into SARIF, JUnit or Markdown consumers | Text is JSON-encoded, XML-escaped with control characters removed, or Markdown- and HTML-escaped |
 
 ## Out of scope

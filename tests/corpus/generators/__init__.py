@@ -26,6 +26,7 @@ from filevet.core.extract_finance import column
 __all__ = [
     "bank_statement_csv",
     "camt053",
+    "corrupt_deflate",
     "csv_rows",
     "disguised",
     "docx",
@@ -113,6 +114,7 @@ def camt053(
     remittance_xml: str = "Invoice 2026-0001",
     entries: int = 1,
     encoding: str = "utf-8",
+    declared_encoding: str | None = None,
     message: str = "camt.053.001.08",
     msg_id: str = "STMT-0001",
     created: str = "2026-01-31T18:00:00",
@@ -164,7 +166,7 @@ def camt053(
     control = f"<NbOfTxs>{entries}</NbOfTxs><CtrlSum>{control_sum}</CtrlSum>" if control_sum else ""
     root = _ISO_ROOTS[message[:8]]
     xml = (
-        f'<?xml version="1.0" encoding="{encoding}"?>\n{doctype}\n'
+        f'<?xml version="1.0" encoding="{declared_encoding or encoding}"?>\n{doctype}\n'
         f'<Document xmlns="urn:iso:std:iso:20022:tech:xsd:{message}"><{root}>'
         f"<GrpHdr><MsgId>{msg_id}</MsgId><CreDtTm>{created}</CreDtTm>{control}</GrpHdr>"
         f"{body}</{root}></Document>\n"
@@ -258,6 +260,20 @@ def _blob(part: str) -> bytes:
 
 def disguised(out: Path, *, name: str, parts: list[str]) -> Path:
     return _write(out, name, b"".join(_blob(part) for part in parts))
+
+
+def corrupt_deflate(out: Path, *, name: str = "statement.xlsx") -> Path:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", _content_types("/xl/workbook.xml"))
+        zf.writestr(
+            "xl/workbook.xml", f'<workbook xmlns="{_MAIN}">' + "<sheets/>" * 50 + "</workbook>"
+        )
+    data = bytearray(buf.getvalue())
+    info = zipfile.ZipFile(io.BytesIO(data)).getinfo("xl/workbook.xml")
+    name_len, extra_len = struct.unpack_from("<HH", data, info.header_offset + 26)
+    data[info.header_offset + 30 + name_len + extra_len] = 0xFF
+    return _write(out, name, bytes(data))
 
 
 def eicar(out: Path, *, name: str = "eicar.com") -> Path:
@@ -495,6 +511,7 @@ def pdf(
     filter_chain: bool = False,
     truncated: bool = False,
     bad_startxref: bool = False,
+    startxref: int | None = None,
     producer: str | None = None,
     created: str | None = None,
     modified: str | None = None,
@@ -627,7 +644,9 @@ def pdf(
     ).encode()
     info_ref = f" /Info {info} 0 R" if info else ""
     body += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R{info_ref} >>\n".encode()
-    body += f"startxref\n{xref + 7 if bad_startxref else xref}\n%%EOF\n".encode()
+    if startxref is None:
+        startxref = xref + 7 if bad_startxref else xref
+    body += f"startxref\n{startxref}\n%%EOF\n".encode()
     for update in updates or []:
         changed = {5: _pdf_stream("", _pdf_content(update, None, None, None))}
         if update_producer:

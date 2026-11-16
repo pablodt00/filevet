@@ -14,7 +14,7 @@ Fintechs and finance teams take in files from outside every day: invoices, bank 
 ## Status
 
 > [!WARNING]
-> filevet is pre-1.0. It detects active content, known malware and parser attacks in PDF, CSV, XLSX and legacy Office files, ISO 20022 XML and ZIP archives, signs of tampering and inconsistent financial data, and hidden content aimed at AI pipelines. It runs as a CLI, a Python library or a REST API. It hasn't been tested against real-world traffic yet. Until 1.0, the CLI, report format and Python API may change between minor versions.
+> filevet is pre-1.0. It detects active content, known malware and parser attacks in PDF, CSV, XLSX and legacy Office files, ISO 20022 XML and ZIP archives, signs of tampering and inconsistent financial data, and hidden content aimed at AI pipelines. It runs as a CLI, a Python library or a REST API. It hasn't been tested against real-world traffic yet. Until 1.0, the CLI, report format and Python API may change between minor versions. [docs/stability.md](https://github.com/pablodt00/filevet/blob/master/docs/stability.md) describes what 1.0 will freeze.
 
 ## Quickstart
 
@@ -47,6 +47,8 @@ The same Compose file runs the REST API with an async worker, Redis and ClamAV. 
 export FILEVET_SPOOL_KEY=... FILEVET_API_KEYS=...
 docker compose up -d
 ```
+
+Kubernetes: `helm install filevet oci://ghcr.io/pablodt00/charts/filevet --version <version> --set apiKeys=<sha256-of-key>`. See [docs/kubernetes.md](https://github.com/pablodt00/filevet/blob/master/docs/kubernetes.md).
 
 ## Example
 
@@ -107,19 +109,21 @@ The verdict comes from a policy: `default`, `strict` (bank-grade intake), `ai-in
 Other commands:
 
 - `filevet extract --visible-only file.pdf` prints only the text a person would see, as a safe extraction step before an AI pipeline.
+- `filevet sanitize invoice.pdf --output clean.pdf` writes a copy without JavaScript, actions, embedded files, forms, macros or external links, and prints what it removed. CSV formula cells get a leading `'` ([docs/sanitize.md](https://github.com/pablodt00/filevet/blob/master/docs/sanitize.md)).
 - `filevet serve` and `filevet worker` run the REST API and its async workers ([docs/api.md](https://github.com/pablodt00/filevet/blob/master/docs/api.md)).
 - `filevet analyzers` lists the registered analyzers, and `filevet version` prints the version.
 
 ### Python
 
 ```python
-from filevet import Policy, ascan, extract_text, scan
+from filevet import Policy, ascan, extract_text, sanitize, scan
 
 report = scan("invoice.pdf", policy=Policy.load("strict"))
 print(report.verdict, report.decision.reason)
 
 report = await ascan(upload_bytes, name="invoice.pdf")
 text = extract_text("invoice.pdf", visible_only=True)
+clean, removed = sanitize("invoice.pdf")
 ```
 
 `examples/` has a FastAPI upload endpoint, an S3 event handler that moves files to a quarantine bucket, and a RAG ingestion script.
@@ -208,6 +212,7 @@ Each rule has a page in [docs/rules/](https://github.com/pablodt00/filevet/tree/
 | `FILEVET_CLAMD` | Address of `clamd`: `unix:/path/clamd.sock` or `tcp:host:port`. Without it, ClamAV isn't used |
 | `FILEVET_YARA_RULES` | Directories of extra `.yar` files, separated by `:` |
 | `FILEVET_XSD_DIR` | Directory of ISO 20022 XSDs, one `<message>.xsd` per version, such as `camt.053.001.08.xsd` |
+| `FILEVET_SANDBOX` | Where analyzers run: `subprocess` (default), `nsjail` or `gvisor`. See [docs/security-model.md](https://github.com/pablodt00/filevet/blob/master/docs/security-model.md) |
 
 The REST API has its own settings, listed in [docs/api.md](https://github.com/pablodt00/filevet/blob/master/docs/api.md#configuration).
 
@@ -227,6 +232,7 @@ The synthetic test corpus in `tests/corpus/cases/` has one case per threat and p
 - Integrity checks only see traces of editing. A document forged from scratch, or flattened into a new PDF, looks clean to them. Scanned images aren't read.
 - PDF signatures are checked offline, against the trust roots you supply, without revocation data.
 - Hidden-content checks assume a white page and estimate glyph positions, so text hidden by a dark vector shape, or made unreadable in a way the rules don't model, gets through. The prompt injection patterns are heuristics in English and Spanish only.
+- The default `subprocess` sandbox contains crashes, hangs and memory blowups, but it isn't a security boundary. In production, use the `nsjail` or `gvisor` backend, or run workers under gVisor in Kubernetes.
 - It doesn't analyze network traffic, attribute malware to families, or store scanned files.
 
 The full scope is in [docs/SCOPE.md](https://github.com/pablodt00/filevet/blob/master/docs/SCOPE.md).

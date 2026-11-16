@@ -1,14 +1,13 @@
 import itertools
 import os
 from pathlib import Path
-from xml.etree.ElementTree import ParseError
 
 import xmlschema
-from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult
 from filevet.core.artifact import Artifact
+from filevet.core.errors import XML_ERRORS
 from filevet.core.finding import Finding, Location, Severity
 from filevet.core.identify import iso20022_message
 
@@ -26,7 +25,7 @@ class Iso20022Schema:
     def analyze(self, artifact: Artifact, ctx: AnalysisContext) -> AnalyzerResult:
         try:
             root = fromstring(artifact.read(ctx.limits.max_input_bytes), forbid_dtd=True)
-        except (ParseError, DefusedXmlException):
+        except XML_ERRORS:
             return AnalyzerResult()
         message = iso20022_message(root.tag)
         if message is None:

@@ -4,7 +4,7 @@ Date: 2026-11-11
 
 ## Status
 
-Accepted
+Superseded by [ADR 13](0013-sandbox-backends.md). The fork described here is still the `subprocess` backend.
 
 ## Context
 

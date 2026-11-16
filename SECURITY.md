@@ -4,12 +4,15 @@ filevet's job is to open hostile files, so a bug in filevet itself can expose th
 
 ## Supported versions
 
-While filevet is pre-1.0, only the latest minor release gets security fixes.
+From 1.0.0, filevet follows semantic versioning ([docs/stability.md](docs/stability.md)).
 
-| Version | Supported |
-| --- | --- |
-| Latest 0.x minor | Yes |
-| Older releases | No |
+| Version | Bug fixes | Security fixes |
+| --- | --- | --- |
+| Latest minor of the latest major, for example 1.4 | Yes | Yes |
+| Older minors of the latest major | No | Fixed in a patch of the latest minor. Upgrading within the major is safe by design |
+| Older majors and 0.x | No | No |
+
+Until 1.0.0 ships, the latest 0.x minor gets security fixes. The Docker image and the Helm chart follow the same table.
 
 ## Reporting a vulnerability
 

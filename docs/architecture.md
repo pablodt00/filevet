@@ -54,11 +54,11 @@ The JSON schema of the report, which includes `Finding` and `Artifact`, is a pub
 
 ## Isolation model
 
-Every analyzer run gets its own forked process with a wall-clock timeout (30 s by default) and a memory cap (1 GB by default, via `RLIMIT_AS` on Linux). The process handles one artifact and is then killed, so no state leaks between files. It sends its result back as JSON, which the pipeline validates against `AnalyzerResult` before using it. Nothing crosses the boundary as a pickle. If an analyzer times out, crashes, raises, returns something invalid or sends a result that's too large, the scan records a `pipeline.analyzer_error` finding with severity `high` and goes on with the other analyzers. Only the exception type goes into the report, never its message, because a message can quote file contents. The reasons are in [ADR 6](adr/0006-subprocess-isolation-v0.md).
+Every analyzer run goes through a `Sandbox` (`core/sandbox.py`), chosen with `FILEVET_SANDBOX` or the `sandbox=` argument. The process handles one artifact and is then killed, so no state leaks between files. Each run has a wall-clock timeout (30 s by default) and a memory cap (1 GB by default, via `RLIMIT_AS`). The result comes back as JSON, which the pipeline validates against `AnalyzerResult` before using it. Nothing crosses the boundary as a pickle. If an analyzer times out, crashes, raises, returns something invalid or sends a result that's too large, the scan records a `pipeline.analyzer_error` finding with severity `high` and goes on with the other analyzers. Only the exception type goes into the report, never its message, because a message can quote file contents.
+
+The `subprocess` backend forks the worker ([ADR 6](adr/0006-subprocess-isolation-v0.md)). The `nsjail` and `gvisor` backends start a fresh interpreter in a jail with no network, a read-only root holding only the Python runtime, the sample and a small tmpfs, a non-root user with no capabilities, `no_new_privs`, a seccomp allow-list and limits on CPU, memory, files and processes ([ADR 13](adr/0013-sandbox-backends.md)). What each backend guarantees, and where it stops, is in [security-model.md](security-model.md).
 
 Logs hold hashes, rule IDs and timings only, never file contents.
-
-This is isolation v0. Phase 4 replaces it with a `Sandbox` interface and stronger backends: no network, read-only filesystem, seccomp and dropped privileges.
 
 ## Built-in analyzers
 
@@ -95,7 +95,7 @@ The reasons behind these choices are recorded in [adr/](adr/).
 
 ## Interfaces
 
-- CLI (`interfaces/cli.py`): `scan`, `extract`, `policy test`, `serve`, `worker` and the informational commands. Output formats (SARIF, JUnit XML, Markdown) are in `interfaces/formats.py`.
-- Library: `filevet.scan`, `filevet.ascan`, `filevet.extract_text` and `filevet.Policy`. `ascan` runs the scan in a thread, so the event loop isn't blocked.
-- REST API (`interfaces/api.py`, FastAPI): small uploads are scanned in the request, larger ones are queued. The queue (`interfaces/jobs.py`) is a small `Backend` protocol with a Redis implementation for production and an in-memory one for development ([ADR 12](adr/0012-rest-api-dependencies.md)). Queued uploads are encrypted with Fernet. Workers run the same pipeline, so the isolation model is the same for every interface. Details are in [api.md](api.md).
+- CLI (`interfaces/cli.py`): `scan`, `extract`, `sanitize`, `policy test`, `serve`, `worker` and the informational commands. `sanitize` (`filevet/sanitize.py`) runs in the same sandbox as the analyzers ([sanitize.md](sanitize.md)). Output formats (SARIF, JUnit XML, Markdown) are in `interfaces/formats.py`.
+- Library: `filevet.scan`, `filevet.ascan`, `filevet.extract_text`, `filevet.sanitize` and `filevet.Policy`. What's public from 1.0 is listed in [stability.md](stability.md). `ascan` runs the scan in a thread, so the event loop isn't blocked.
+- REST API (`interfaces/api.py`, FastAPI): small uploads are scanned in the request, larger ones are queued. The queue (`interfaces/jobs.py`) is a small `Backend` protocol with a Redis implementation for production and an in-memory one for development ([ADR 12](adr/0012-rest-api-dependencies.md)). Queued uploads are encrypted with Fernet. Workers run the same pipeline, so the isolation model is the same for every interface. Details are in [api.md](api.md), and the Helm chart is described in [kubernetes.md](kubernetes.md).
 - LLM second opinion (`filevet/llm.py`): an optional verifier found through the `filevet.llm_verifiers` entry point group. It sees one `ai.*` finding at a time, can only raise its confidence, and is never called unless `--llm-verify` names it.

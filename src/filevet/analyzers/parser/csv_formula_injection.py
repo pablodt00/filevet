@@ -4,13 +4,13 @@ import re
 import unicodedata
 import zipfile
 from collections.abc import Iterable, Iterator
-from xml.etree.ElementTree import Element, ParseError
+from xml.etree.ElementTree import Element
 
-from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult
 from filevet.core.artifact import Artifact
+from filevet.core.errors import XML_ERRORS, ZIP_ERRORS
 from filevet.core.extract_finance import column, decode
 from filevet.core.finding import Finding, Location, Severity
 
@@ -46,7 +46,7 @@ class CsvFormulaInjection:
             try:
                 with zipfile.ZipFile(io.BytesIO(data)) as zf:
                     cells = list(_xlsx_cells(zf, ctx.limits.max_input_bytes))
-            except (zipfile.BadZipFile, OSError, ValueError, EOFError):
+            except (*ZIP_ERRORS, ValueError):
                 return AnalyzerResult()
         findings = []
         try:
@@ -91,7 +91,7 @@ def _csv_cells(data: bytes) -> Iterator[tuple[Location, str]]:
     except csv.Error:
         dialect = csv.excel
     csv.field_size_limit(MAX_FIELD)
-    for row_number, row in enumerate(csv.reader(io.StringIO(text), dialect), 1):
+    for row_number, row in enumerate(csv.reader(io.StringIO(text, newline=""), dialect), 1):
         if row_number > MAX_ROWS:
             raise _TooLarge(f"more than {MAX_ROWS} rows")
         if len(row) > MAX_COLUMNS:
@@ -132,7 +132,7 @@ def _xml(zf: zipfile.ZipFile, part: str, limit: int) -> Element:
         with zf.open(part) as f:
             root: Element = fromstring(f.read(limit), forbid_dtd=True)
             return root
-    except (ParseError, DefusedXmlException, zipfile.BadZipFile, RuntimeError, OSError):
+    except (*XML_ERRORS, *ZIP_ERRORS):
         return Element("empty")
 
 

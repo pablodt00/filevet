@@ -3,11 +3,11 @@ import itertools
 import re
 import stat
 import zipfile
-import zlib
 from collections.abc import Iterator
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult, ExtractedFile
 from filevet.core.artifact import Artifact
+from filevet.core.errors import ZIP_ERRORS
 from filevet.core.finding import Finding, Location, Severity
 from filevet.core.limits import Limits
 
@@ -32,7 +32,7 @@ class Archive:
         try:
             with zipfile.ZipFile(artifact.path) as zf:
                 return _extract(zf, artifact, ctx.limits)
-        except (zipfile.BadZipFile, ValueError, OSError, EOFError) as exc:
+        except (*ZIP_ERRORS, ValueError) as exc:
             return AnalyzerResult(findings=[_malformed(type(exc).__name__)])
 
 
@@ -58,7 +58,7 @@ def _extract(zf: zipfile.ZipFile, artifact: Artifact, limits: Limits) -> Analyze
             continue
         try:
             data, digest = _read(zf, info)
-        except (zipfile.BadZipFile, RuntimeError, NotImplementedError, EOFError, zlib.error):
+        except ZIP_ERRORS:
             findings.append(_malformed(f"entry could not be read: {info.filename}", where))
             continue
         if digest == artifact.sha256:

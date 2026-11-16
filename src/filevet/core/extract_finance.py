@@ -6,12 +6,12 @@ from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 from typing import NamedTuple
-from xml.etree.ElementTree import Element, ParseError
+from xml.etree.ElementTree import Element
 
 from charset_normalizer import from_bytes
-from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
+from filevet.core.errors import XML_ERRORS, ZIP_ERRORS
 from filevet.core.finding import Location
 
 IBAN_LENGTHS = {
@@ -205,7 +205,7 @@ def read_csv(data: bytes) -> list[list[str]]:
     except csv.Error:
         dialect = csv.excel
     rows = []
-    for row in csv.reader(io.StringIO(text), dialect):
+    for row in csv.reader(io.StringIO(text, newline=""), dialect):
         rows.append(row[:MAX_COLUMNS])
         if len(rows) == MAX_ROWS:
             break
@@ -244,7 +244,7 @@ def _xml(zf: zipfile.ZipFile, part: str, limit: int) -> Element:
         with zf.open(part) as f:
             root: Element = fromstring(f.read(limit), forbid_dtd=True)
             return root
-    except (ParseError, DefusedXmlException, zipfile.BadZipFile, RuntimeError, OSError):
+    except (*XML_ERRORS, *ZIP_ERRORS):
         return Element("empty")
 
 

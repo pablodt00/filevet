@@ -142,7 +142,8 @@ def _smuggling(found: list[Run]) -> list[Finding]:
         if (zw := ZERO_WIDTH_IN_WORD.search(text)) and "zero_width" not in checks:
             checks["zero_width"] = (Severity.MEDIUM, _around(text, zw.start()), run.location)
         if "homoglyph" not in checks:
-            mixed = next((w for w in WORD.findall(text) if len(_scripts(w)) > 1), None)
+            words = (w for w in WORD.findall(text) if not w.isascii())
+            mixed = next((w for w in words if len(_scripts(w)) > 1), None)
             if mixed:
                 checks["homoglyph"] = (Severity.MEDIUM, mixed, run.location)
     titles = {

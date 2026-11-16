@@ -1,17 +1,12 @@
 import hashlib
 import json
 import logging
-import multiprocessing
-import resource
 import tempfile
 import time
 from collections import deque
 from collections.abc import Sequence
-from multiprocessing.connection import Connection
 from pathlib import Path
 from uuid import uuid4
-
-from pydantic import ValidationError
 
 from filevet.core.analyzer import (
     AnalysisContext,
@@ -28,10 +23,10 @@ from filevet.core.finding import Finding, Severity
 from filevet.core.identify import SNIFF_BYTES, declared_type, detect_type
 from filevet.core.limits import DEFAULT_LIMITS, Limits
 from filevet.core.report import AnalyzerRun, Report, Status
+from filevet.core.sandbox import Sandbox, get_sandbox
 from filevet.policies import Policy, Suppression
 
 log = logging.getLogger("filevet")
-_mp = multiprocessing.get_context("fork")
 
 
 def scan(
@@ -44,7 +39,9 @@ def scan(
     policy: Policy | None = None,
     suppressions: Sequence[Suppression] = (),
     name: str = "",
+    sandbox: Sandbox | None = None,
 ) -> Report:
+    sandbox = sandbox or get_sandbox()
     if analyzers is None:
         analyzers = load_analyzers()
     data, name = _read(source, limits, name)
@@ -61,7 +58,7 @@ def scan(
             artifact = pending.popleft()
             artifacts.append(artifact)
             for analyzer in analyzers:
-                run, result = _run(analyzer, artifact, ctx)
+                run, result = _run(sandbox, analyzer, artifact, ctx)
                 if run is None:
                     continue
                 runs.append(run)
@@ -83,17 +80,43 @@ def scan(
 
 
 def extract_text(
-    source: str | Path | bytes, limits: Limits = DEFAULT_LIMITS, *, visible_only: bool = False
+    source: str | Path | bytes,
+    limits: Limits = DEFAULT_LIMITS,
+    *,
+    visible_only: bool = False,
+    sandbox: Sandbox | None = None,
 ) -> str:
+    result = _task(_TextExtractor(visible_only), "text extraction", source, limits, sandbox)
+    return result.children[0].data.decode()
+
+
+def sanitize(
+    source: str | Path | bytes, limits: Limits = DEFAULT_LIMITS, *, sandbox: Sandbox | None = None
+) -> tuple[bytes, list[Finding]]:
+    from filevet.sanitize import Sanitizer
+
+    result = _task(Sanitizer(), "sanitizing", source, limits, sandbox)
+    return result.children[0].data, result.findings
+
+
+def _task(
+    task: Analyzer,
+    what: str,
+    source: str | Path | bytes,
+    limits: Limits,
+    sandbox: Sandbox | None,
+) -> AnalyzerResult:
     data, name = _read(source, limits, "")
     with tempfile.TemporaryDirectory(prefix="filevet-") as tmp:
         artifact = _ingest(Path(tmp), name, data, None)
-        status, result, error = _isolated(
-            _TextExtractor(visible_only), artifact, AnalysisContext(limits=limits)
+        if not task.supports(artifact):
+            raise ScanError(f"{what} is not supported for {artifact.detected_type} files")
+        status, result, error = (sandbox or get_sandbox()).run(
+            task, artifact, AnalysisContext(limits=limits)
         )
     if status != "ok" or not result.children:
-        raise ScanError(f"text extraction failed: {status} {error or ''}".strip())
-    return result.children[0].data.decode()
+        raise ScanError(f"{what} failed: {status} {error or ''}".strip())
+    return result
 
 
 class _TextExtractor:
@@ -157,7 +180,7 @@ def _limit_reached(limits: Limits, parent: Artifact, children: int, expanded: in
 
 
 def _run(
-    analyzer: Analyzer, artifact: Artifact, ctx: AnalysisContext
+    sandbox: Sandbox, analyzer: Analyzer, artifact: Artifact, ctx: AnalysisContext
 ) -> tuple[AnalyzerRun | None, AnalyzerResult]:
     started = time.monotonic()
     outcome: tuple[Status, AnalyzerResult, str | None]
@@ -168,7 +191,7 @@ def _run(
     else:
         if not supported:
             return None, AnalyzerResult()
-        outcome = _isolated(analyzer, artifact, ctx)
+        outcome = sandbox.run(analyzer, artifact, ctx)
     status, result, error = outcome
     run = AnalyzerRun(
         analyzer=analyzer.name,
@@ -192,45 +215,6 @@ def _run(
             )
         )
     return run, result
-
-
-def _isolated(
-    analyzer: Analyzer, artifact: Artifact, ctx: AnalysisContext
-) -> tuple[Status, AnalyzerResult, str | None]:
-    receiver, sender = _mp.Pipe(duplex=False)
-    worker = _mp.Process(target=_worker, args=(analyzer, artifact, ctx, sender))
-    worker.start()
-    sender.close()
-    try:
-        if not receiver.poll(ctx.limits.timeout_s):
-            return "timeout", AnalyzerResult(), f"no result after {ctx.limits.timeout_s:g} s"
-        payload = receiver.recv_bytes(2 * ctx.limits.max_total_expanded_bytes + (1 << 20))
-    except EOFError:
-        worker.join(ctx.limits.timeout_s)
-        return "error", AnalyzerResult(), f"worker exited with code {worker.exitcode}"
-    except OSError:
-        return "error", AnalyzerResult(), "result too large"
-    finally:
-        worker.kill()
-        worker.join()
-        receiver.close()
-    if payload.startswith(b"!"):
-        return "error", AnalyzerResult(), f"raised {payload[1:].decode('ascii', 'replace')}"
-    try:
-        return "ok", AnalyzerResult.model_validate_json(payload), None
-    except ValidationError:
-        return "error", AnalyzerResult(), "returned an invalid result"
-
-
-def _worker(analyzer: Analyzer, artifact: Artifact, ctx: AnalysisContext, conn: Connection) -> None:
-    memory = ctx.limits.memory_bytes
-    resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
-    try:
-        result = analyzer.analyze(artifact, ctx)
-        payload = AnalyzerResult.model_validate(result).model_dump_json().encode()
-    except Exception as exc:
-        payload = b"!" + type(exc).__name__.encode("ascii", "replace")
-    conn.send_bytes(payload)
 
 
 def _error_finding(artifact: Artifact, run: AnalyzerRun) -> Finding:

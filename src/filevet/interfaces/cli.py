@@ -19,7 +19,7 @@ from filevet.core.errors import ScanError
 from filevet.core.finding import Severity
 from filevet.core.identify import TYPES
 from filevet.core.limits import DEFAULT_LIMITS, Limits
-from filevet.core.pipeline import extract_text, scan
+from filevet.core.pipeline import extract_text, sanitize, scan
 from filevet.core.report import Report
 from filevet.interfaces import formats
 from filevet.llm import load_verifier, second_opinion
@@ -81,6 +81,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     extract_parser.add_argument(
         "--visible-only", action="store_true", help="only text a person would see"
     )
+    sanitize_parser = commands.add_parser(
+        "sanitize", help="write a copy without active content and report what was removed"
+    )
+    sanitize_parser.add_argument("path", type=Path)
+    sanitize_parser.add_argument("--output", type=Path, required=True)
     serve_parser = commands.add_parser("serve", help="run the REST API")
     serve_parser.add_argument("--host", default="127.0.0.1")
     serve_parser.add_argument("--port", type=int, default=8000)
@@ -98,6 +103,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             _policy_test(parser, _policy(parser, args.policy), args.corpus)
         elif args.command == "extract":
             _extract(parser, args)
+        elif args.command == "sanitize":
+            _sanitize(parser, args)
         elif args.command in {"serve", "worker"}:
             _run_service(parser, args)
         elif args.command == "analyzers":
@@ -247,6 +254,24 @@ def _extract(parser: _Parser, args: argparse.Namespace) -> None:
         sys.stdout.write(extract_text(args.path, visible_only=args.visible_only) + "\n")
     except ScanError as exc:
         parser.error(str(exc))
+
+
+def _sanitize(parser: _Parser, args: argparse.Namespace) -> None:
+    if not args.path.is_file():
+        parser.error(f"not a file: {args.path}")
+    if args.output.resolve() == args.path.resolve():
+        parser.error("--output must not be the input file")
+    try:
+        clean, removed = sanitize(args.path)
+    except ScanError as exc:
+        parser.error(str(exc))
+    args.output.write_bytes(clean)
+    report = {
+        "input": args.path.name,
+        "output": str(args.output),
+        "removed": [f.model_dump(include={"rule_id", "title", "description"}) for f in removed],
+    }
+    print(json.dumps(report, indent=2))
 
 
 def _print_table(report: Report, out: TextIO) -> None:

@@ -1,0 +1,111 @@
+{{- if .Values.clamav.enabled }}
+{{- $image := printf "%s:%s" .Values.clamav.image.repository .Values.clamav.image.tag }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "filevet.fullname" . }}-clamav
+  labels:
+    {{- include "filevet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clamav
+data:
+  clamd.conf: |
+    Foreground yes
+    LogTime yes
+    TCPSocket 3310
+    TCPAddr 0.0.0.0
+    DatabaseDirectory /db
+    TemporaryDirectory /tmp
+    PidFile /tmp/clamd.pid
+  freshclam.conf: |
+    Foreground yes
+    LogTime yes
+    DatabaseDirectory /db
+    DatabaseMirror database.clamav.net
+    PidFile /tmp/freshclam.pid
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "filevet.fullname" . }}-clamav
+  labels:
+    {{- include "filevet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clamav
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "filevet.selector" (dict "root" . "component" "clamav") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "filevet.selector" (dict "root" . "component" "clamav") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml (merge (dict "runAsUser" 100 "runAsGroup" 101 "fsGroup" 101) .Values.podSecurityContext) | nindent 8 }}
+      initContainers:
+        - name: seed
+          image: {{ $image }}
+          command: [sh, -c, "cp /var/lib/clamav/*.cvd /db/"]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.clamav.freshclam.resources | nindent 12 }}
+          volumeMounts:
+            - {name: db, mountPath: /db}
+      containers:
+        - name: clamd
+          image: {{ $image }}
+          command: [clamd, --config-file=/etc/filevet-clamav/clamd.conf]
+          ports:
+            - name: clamd
+              containerPort: 3310
+          startupProbe:
+            tcpSocket: {port: clamd}
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket: {port: clamd}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.clamav.resources | nindent 12 }}
+          volumeMounts:
+            - {name: db, mountPath: /db}
+            - {name: config, mountPath: /etc/filevet-clamav}
+            - {name: tmp, mountPath: /tmp}
+        - name: freshclam
+          image: {{ $image }}
+          command: [freshclam, --daemon, --stdout, --checks=12, --config-file=/etc/filevet-clamav/freshclam.conf]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.clamav.freshclam.resources | nindent 12 }}
+          volumeMounts:
+            - {name: db, mountPath: /db}
+            - {name: config, mountPath: /etc/filevet-clamav}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: db
+          emptyDir:
+            sizeLimit: {{ .Values.clamav.databaseSizeLimit }}
+        - name: config
+          configMap:
+            name: {{ include "filevet.fullname" . }}-clamav
+        {{- include "filevet.tmp" . | nindent 8 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "filevet.fullname" . }}-clamav
+  labels:
+    {{- include "filevet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: clamav
+spec:
+  selector:
+    {{- include "filevet.selector" (dict "root" . "component" "clamav") | nindent 4 }}
+  ports:
+    - name: clamd
+      port: 3310
+      targetPort: clamd
+{{- end }}

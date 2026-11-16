@@ -1,0 +1,58 @@
+name: Fuzz
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: Time budget per target, in seconds
+        default: "600"
+
+permissions: {}
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [pdf, ooxml, ole, csv, xml, zip, pipeline]
+    env:
+      SECONDS_PER_TARGET: ${{ inputs.seconds || '600' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.11"
+      - run: uv sync --frozen
+      - name: Write the seed corpus
+        run: make corpus
+      - uses: actions/cache/restore@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        with:
+          path: tmp-samples/fuzz/${{ matrix.target }}
+          key: fuzz-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-${{ matrix.target }}-
+      - name: Fuzz
+        run: |
+          mkdir -p "tmp-samples/fuzz/${{ matrix.target }}" tmp-samples/fuzz/crashes
+          uv run --with atheris==2.3.0 python -I fuzz/fuzz.py "${{ matrix.target }}" \
+            -max_total_time="$SECONDS_PER_TARGET" -timeout=30 -rss_limit_mb=2048 -max_len=1048576 \
+            -artifact_prefix=tmp-samples/fuzz/crashes/ \
+            "tmp-samples/fuzz/${{ matrix.target }}" tmp-samples/corpus
+      - uses: actions/cache/save@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        if: always()
+        with:
+          path: tmp-samples/fuzz/${{ matrix.target }}
+          key: fuzz-${{ matrix.target }}-${{ github.run_id }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: crashes-${{ matrix.target }}
+          path: tmp-samples/fuzz/crashes/
+          retention-days: 30
