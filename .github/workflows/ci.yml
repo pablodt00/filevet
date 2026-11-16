@@ -95,9 +95,9 @@ jobs:
         run: |
           base="https://storage.googleapis.com/gvisor/releases/release/${GVISOR_RELEASE}/x86_64"
           cd "$RUNNER_TEMP"
-          curl -fsSLO "$base/runsc" -O "$base/runsc.sha512"
-          sha512sum -c runsc.sha512
-          sudo install runsc /usr/local/bin/
+          curl -fsSLO "$base/gvisor.tar.zstd" -O "$base/gvisor.tar.zstd.sha512"
+          sha512sum -c gvisor.tar.zstd.sha512
+          sudo tar --zstd -xf gvisor.tar.zstd -C /usr/local/bin
       - run: uv sync --frozen
       - name: Escape tests
         run: uv run pytest -m "requires_nsjail or requires_gvisor" -rs tests/unit/test_sandbox.py
