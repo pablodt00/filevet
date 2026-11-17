@@ -95,6 +95,8 @@ def test_nsjail_argv(tmp_path: Path) -> None:
     for flag in ("--user 65534", "--iface_no_lo", "--time_limit 4", "--rlimit_nproc 16"):
         assert flag in joined
     assert f"-R {tmp_path / 's'}:/sample" in joined
+    assert "--tmpfs_size" not in argv
+    assert f"none:/work:tmpfs:size={Limits().max_input_bytes}" in argv
     assert argv[argv.index("--") + 1 :] == [sys.executable, "-I", "-m", "filevet.core.sandbox"]
     assert (tmp_path / "policy.kafel").read_text() == _kafel()
 
