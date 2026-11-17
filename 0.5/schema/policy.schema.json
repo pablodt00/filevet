@@ -1,0 +1,177 @@
+{
+  "$defs": {
+    "Match": {
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rule ID glob or a list",
+          "title": "Rule Id"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Severity"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/Severity"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity"
+        },
+        "evidence_contains": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Contains"
+        }
+      },
+      "title": "Match",
+      "type": "object"
+    },
+    "Override": {
+      "additionalProperties": false,
+      "properties": {
+        "match": {
+          "$ref": "#/$defs/Match"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        }
+      },
+      "required": [
+        "match",
+        "severity"
+      ],
+      "title": "Override",
+      "type": "object"
+    },
+    "Rule": {
+      "additionalProperties": false,
+      "properties": {
+        "match": {
+          "$ref": "#/$defs/Match"
+        },
+        "action": {
+          "enum": [
+            "allow",
+            "pass_with_findings",
+            "review",
+            "block"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/When",
+          "default": {
+            "min_count": 1
+          }
+        }
+      },
+      "required": [
+        "match",
+        "action"
+      ],
+      "title": "Rule",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "When": {
+      "additionalProperties": false,
+      "properties": {
+        "min_count": {
+          "default": 1,
+          "description": "Apply only when this many findings match",
+          "minimum": 1,
+          "title": "Min Count",
+          "type": "integer"
+        }
+      },
+      "title": "When",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "policy_version": {
+      "const": 1,
+      "title": "Policy Version",
+      "type": "integer"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "rules": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "title": "Rules",
+      "type": "array"
+    },
+    "overrides": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Override"
+      },
+      "title": "Overrides",
+      "type": "array"
+    },
+    "default_action": {
+      "default": "pass_with_findings",
+      "enum": [
+        "allow",
+        "pass_with_findings",
+        "review",
+        "block"
+      ],
+      "title": "Default Action",
+      "type": "string"
+    }
+  },
+  "required": [
+    "policy_version",
+    "name"
+  ],
+  "title": "Policy",
+  "type": "object"
+}

@@ -1,0 +1,1533 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Self-hosted scanner that checks financial files for security risks before anyone opens them">
+      
+      
+      
+        <link rel="canonical" href="https://pablodt00.github.io/filevet/0.5/integrity/">
+      
+      
+        <link rel="prev" href="../security-model/">
+      
+      
+        <link rel="next" href="../rules/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Integrity checks - filevet</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#integrity-checks" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="filevet" class="md-header__button md-logo" aria-label="filevet" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            filevet
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Integrity checks
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/pablodt00/filevet" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pablodt00/filevet
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="filevet" class="md-nav__button md-logo" aria-label="filevet" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    filevet
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/pablodt00/filevet" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    pablodt00/filevet
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline and findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../policies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Policies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isolation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrity checks
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrity checks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pdf-tampering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDF tampering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PDF tampering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#saved-again-after-creation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saved again after creation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-text-said-before" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the text said before
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#who-wrote-the-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Who wrote the file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#white-boxes-and-text-over-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        White boxes and text over text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fonts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fonts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signatures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#financial-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rule reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Policy cookbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kubernetes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kubernetes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sanitize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sanitizing files
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing an analyzer plugin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Isolation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../threat-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threat model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fuzzing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fuzzing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../privacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Privacy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../capacity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Capacity planning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../SCOPE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pdf-tampering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDF tampering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PDF tampering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#saved-again-after-creation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Saved again after creation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-text-said-before" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the text said before
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#who-wrote-the-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Who wrote the file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#white-boxes-and-text-over-text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        White boxes and text over text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fonts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fonts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signatures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signatures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#financial-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Financial data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="integrity-checks">Integrity checks<a class="headerlink" href="#integrity-checks" title="Permanent link">&para;</a></h1>
+<p>A document can be dangerous without carrying malware. Someone edits the amount on a bank statement before sending it in for a loan, or swaps the IBAN on a supplier's invoice so the payment goes to their own account. filevet's integrity rules look for the traces those edits leave behind.</p>
+<p>Integrity findings are signals for a person to review, not proof of fraud. Most rules report <code>medium</code> at most. The exception is a broken PDF signature, or content added after signing, which is <code>high</code> because the document contradicts its own seal. Until the policy engine arrives in Phase 3, the verdict follows the highest severity, so one integrity signal on its own leads to <code>review</code> at most. The Phase 3 policy will raise the verdict when several signals combine, such as a changed amount plus a new producer plus fonts added in the same revision.</p>
+<p>Three analyzers produce these findings:</p>
+<table>
+<thead>
+<tr>
+<th>Analyzer</th>
+<th>Input</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>integrity.pdf_tampering</code></td>
+<td>PDF</td>
+<td><code>pdf_incremental_updates</code>, <code>pdf_revision_diff</code>, <code>pdf_producer_mismatch</code>, <code>pdf_text_overlay</code>, <code>pdf_font_anomaly</code></td>
+</tr>
+<tr>
+<td><code>integrity.pdf_signature</code></td>
+<td>Signed PDF</td>
+<td><code>pdf_digital_signature</code></td>
+</tr>
+<tr>
+<td><code>integrity.financial_data</code></td>
+<td>PDF text, plain text, CSV, XLSX, ISO 20022 XML</td>
+<td><code>iban_invalid</code>, <code>bic_invalid</code>, <code>iban_inconsistent</code>, <code>iban_not_allowlisted</code>, <code>totals_mismatch</code>, <code>date_anomaly</code>, <code>duplicate_ids</code></td>
+</tr>
+</tbody>
+</table>
+<p>All rule IDs start with <code>integrity.</code>. Each one has a page in <a href="../rules/">rules/</a>.</p>
+<h2 id="pdf-tampering">PDF tampering<a class="headerlink" href="#pdf-tampering" title="Permanent link">&para;</a></h2>
+<h3 id="saved-again-after-creation">Saved again after creation<a class="headerlink" href="#saved-again-after-creation" title="Permanent link">&para;</a></h3>
+<p>Most PDF editors don't rewrite the file when you save. They append the changed objects, a new cross-reference section and a new <code>%%EOF</code> at the end. The original bytes stay in place, so every earlier revision can still be read.</p>
+<p>filevet splits the file at each <code>startxref … %%EOF</code> marker and sorts the objects of every later revision into page content, pages, fonts, metadata, form fields and annotations, signatures, or other. <code>integrity.pdf_incremental_updates</code> reports the revision count and what changed in each. A change to page content is <code>medium</code>. Pages, fonts or other objects alone are <code>low</code>, and metadata, form fields or signatures alone are <code>info</code>.</p>
+<h3 id="what-the-text-said-before">What the text said before<a class="headerlink" href="#what-the-text-said-before" title="Permanent link">&para;</a></h3>
+<p><code>integrity.pdf_revision_diff</code> extracts the text of every revision, groups it into lines by position on the page, and diffs each revision against the one before it. A changed line that contains an amount, an IBAN or a date is <code>medium</code>, and any other change (a name, for example) is <code>low</code>. The evidence shows the old and the new line, with IBANs masked.</p>
+<h3 id="who-wrote-the-file">Who wrote the file<a class="headerlink" href="#who-wrote-the-file" title="Permanent link">&para;</a></h3>
+<p><code>integrity.pdf_producer_mismatch</code> compares metadata that should agree:</p>
+<ul>
+<li>the <code>Producer</code> of the first revision with that of the last (<code>low</code>), as when a statement from a banking system was last saved by a consumer PDF editor</li>
+<li>the <code>Producer</code> in the XMP metadata with the one in the Info dictionary (<code>low</code>)</li>
+<li><code>ModDate</code> earlier than <code>CreationDate</code> (<code>medium</code>)</li>
+<li>with a context file, a producer that isn't among the expected ones for an issuer named in the document (<code>medium</code>)</li>
+</ul>
+<h3 id="white-boxes-and-text-over-text">White boxes and text over text<a class="headerlink" href="#white-boxes-and-text-over-text" title="Permanent link">&para;</a></h3>
+<p>The usual way to change a figure in a PDF without an editor that understands text is to paint a white rectangle over it and write the new value on top. <code>integrity.pdf_text_overlay</code> runs the page content stream, tracking the transformation matrix, the fill color, text positions and filled rectangles. It reports a white rectangle painted after text and covering most of it, and text that lands on other, different text. Glyph widths are estimated, not read from font metrics.</p>
+<h3 id="fonts">Fonts<a class="headerlink" href="#fonts" title="Permanent link">&para;</a></h3>
+<p>When someone retypes a number, the editor often embeds a fresh subset of the font, so the page ends up with two copies of, say, <code>ABCDEF+Helvetica</code> and <code>GHIJKL+Helvetica</code>. <code>integrity.pdf_font_anomaly</code> reports digits set in the rarer copy (<code>medium</code>), a font used for amounts and nothing else (<code>low</code>), and fonts added in a later revision (<code>low</code>).</p>
+<h3 id="signatures">Signatures<a class="headerlink" href="#signatures" title="Permanent link">&para;</a></h3>
+<p><code>integrity.pdf_digital_signature</code> verifies every signature with pyHanko (<a href="../adr/0011-integrity-dependencies/">ADR 11</a>):</p>
+<table>
+<thead>
+<tr>
+<th>Result</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Valid, trusted, covers the whole file</td>
+<td><code>info</code></td>
+</tr>
+<tr>
+<td>Valid, but the certificate is untrusted or expired</td>
+<td><code>low</code></td>
+</tr>
+<tr>
+<td>Valid, then form fields or annotations were added</td>
+<td><code>low</code></td>
+</tr>
+<tr>
+<td>Valid, then other content was added</td>
+<td><code>high</code></td>
+</tr>
+<tr>
+<td>Invalid, or the signature can't be read</td>
+<td><code>high</code></td>
+</tr>
+</tbody>
+</table>
+<p>filevet trusts no certificates by default, not even the system store, so a valid signature is <code>low</code> until you list your CA certificates under <code>trust_roots</code> in the context file. It never fetches revocation data.</p>
+<h2 id="financial-data">Financial data<a class="headerlink" href="#financial-data" title="Permanent link">&para;</a></h2>
+<p><code>core/extract_finance.py</code> pulls IBANs, BICs, amounts and dates out of text, CSV and XLSX cells, and reads ISO 20022 messages element by element instead of as text.</p>
+<ul>
+<li><code>integrity.iban_invalid</code>: the mod-97 check fails, the length is wrong for the country, or the country has no IBAN. Unlabeled text only counts when it has a known country code and the right length, so VAT numbers and creditor references (<code>RF…</code>) don't trigger it.</li>
+<li><code>integrity.bic_invalid</code>: the BIC doesn't follow the ISO 9362 layout or its country code is unknown (<code>low</code>). A document with exactly one IBAN and one BIC from different countries is also reported (<code>low</code>).</li>
+<li><code>integrity.iban_inconsistent</code>: a PDF or text document gives more than one labeled IBAN, such as one in the header and another in the payment instructions. Statements, CSV exports and payment files list many counterparties, so this rule skips them.</li>
+<li><code>integrity.totals_mismatch</code>: invoice line items plus tax don't add up to the total; opening balance plus signed entries doesn't give the closing balance; in camt.052 and camt.053, <code>OPBD</code>/<code>PRCD</code> plus the booked <code>Ntry</code> amounts doesn't give <code>CLBD</code>; in pain.001, pain.008 and pacs.008, <code>NbOfTxs</code> or <code>CtrlSum</code> doesn't match the transactions, for the group header and for each <code>PmtInf</code>.</li>
+<li><code>integrity.date_anomaly</code>: dates that don't exist (31.02.2026); in camt messages, a booking date more than 7 days after the value date, a booking date outside the statement period or after the message was created, or a creation date in the future.</li>
+<li><code>integrity.duplicate_ids</code>: the same <code>MsgId</code>, <code>PmtInfId</code>, <code>InstrId</code>, <code>EndToEndId</code>, <code>TxId</code>, <code>NtryRef</code> or <code>AcctSvcrRef</code> more than once at the same place in a message (<code>medium</code> in payment files, <code>low</code> in statements). <code>NOTPROVIDED</code> is ignored.</li>
+</ul>
+<h2 id="context-file">Context file<a class="headerlink" href="#context-file" title="Permanent link">&para;</a></h2>
+<p><code>filevet scan --context context.yaml</code> adds what you already know:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">parties</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">Muster Lieferant GmbH</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">ibans</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">DE17123456780000000001</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">Beispiel Bank AG</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">producers</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">BankCore Statements 4.2</span><span class="p p-Indicator">]</span>
+<span class="nt">trust_roots</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no">-----BEGIN CERTIFICATE-----</span>
+<span class="w">    </span><span class="no">...</span>
+<span class="w">    </span><span class="no">-----END CERTIFICATE-----</span>
+</code></pre></div>
+<p>When a document names a party, <code>integrity.iban_not_allowlisted</code> reports any valid IBAN next to that name that isn't on record for it, which catches invoice redirection. In a PDF or text file the whole document counts as next to the name, in CSV and XLSX it's the same row, and in ISO 20022 it's the same transaction or entry. <code>producers</code> feeds <code>pdf_producer_mismatch</code>, and <code>trust_roots</code> feeds <code>pdf_digital_signature</code>.</p>
+<p>The context file is read once by the CLI and handed to the analyzers. It's never logged, and nothing from it goes into the report except the rule that it triggered. Error messages about the file name the problem, never its contents.</p>
+<h2 id="limits">Limits<a class="headerlink" href="#limits" title="Permanent link">&para;</a></h2>
+<ul>
+<li>A document recreated from scratch, with no revisions, won't trigger the revision, producer-change or added-font checks. Neither will one that was flattened or printed to a new PDF.</li>
+<li>Text extraction understands simple fonts and <code>ToUnicode</code> maps. Text in fonts without a <code>ToUnicode</code> map, in scanned images or in encrypted PDFs isn't read, and encrypted PDFs skip the text-based checks altogether.</li>
+<li>Only Flate-compressed streams are decoded. Other filters hide content from these checks, as they do for <code>malware.pdf_active_content</code>.</li>
+<li>An uncompressed PDF embedded inside another one adds its own <code>%%EOF</code> and can be counted as a revision.</li>
+<li>Overlap detection estimates glyph widths, so tightly kerned or very wide text can be missed or, rarely, misreported.</li>
+<li>Invoice and statement totals are found from labels (<code>Total</code>, <code>Subtotal</code>, <code>VAT</code>, <code>Opening</code>, <code>Closing</code> and their German, Spanish and French counterparts) and from where the amounts sit on each line. Statements are only checked when the entries carry signs, because a separate debit column can't be told apart from a credit one in plain text.</li>
+<li>CII and UBL invoices aren't checked yet, and neither are duplicate invoice numbers across rows of a CSV or XLSX.</li>
+<li>Without trust roots, every signature is untrusted. Revocation isn't checked.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>
