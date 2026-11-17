@@ -44,6 +44,7 @@ SYSCALLS = (
     "clock_gettime", "clock_getres", "clock_nanosleep", "nanosleep", "gettimeofday", "time",
     "exit", "exit_group", "execve",
 )  # fmt: skip
+KAFEL_NAMES = {"stat": "newstat", "fstat": "newfstat", "lstat": "newlstat", "uname": "newuname"}
 _mp = multiprocessing.get_context("fork")
 
 
@@ -339,7 +340,7 @@ def _env() -> list[str]:
 def _kafel() -> str:
     return (
         "POLICY filevet {\n  ALLOW {\n    "
-        + ",\n    ".join(SYSCALLS)
+        + ",\n    ".join(KAFEL_NAMES.get(s, s) for s in SYSCALLS)
         + f",\n    clone {{ (clone_flags & {CLONE_THREAD:#x}) == {CLONE_THREAD:#x} }}"
         + "\n  }\n}\nUSE filevet DEFAULT ERRNO(38)\n"
     )

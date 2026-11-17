@@ -73,6 +73,8 @@ def test_seccomp_allow_list_leaves_out_network_and_process_creation() -> None:
     assert not blocked & set(SYSCALLS)
     assert "clone { (clone_flags & 0x10000) == 0x10000 }" in _kafel()
     assert "DEFAULT ERRNO(38)" in _kafel()
+    assert "newfstat," in _kafel()
+    assert "    fstat," not in _kafel()
 
 
 def test_oci_spec_is_locked_down(tmp_path: Path) -> None:
