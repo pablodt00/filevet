@@ -1,0 +1,84 @@
+name: Helm
+
+on:
+  pull_request:
+    paths: [charts/**, Dockerfile, .github/workflows/helm.yml]
+  push:
+    branches: [master]
+    paths: [charts/**, Dockerfile, .github/workflows/helm.yml]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint-and-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      CHART: charts/filevet
+      NS: filevet
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+      - uses: helm/chart-testing-action@720270857a28afd41e2426521a7801db09e9b510 # v2.9.0
+      - name: Lint
+        run: ct lint --charts "$CHART" --check-version-increment=false --validate-maintainers=false
+      - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
+        with:
+          cluster_name: filevet
+      - name: Build and load the image
+        run: |
+          docker build -t filevet:test .
+          kind load docker-image filevet:test --name filevet
+      - name: Install into a namespace that enforces the restricted Pod Security Standard
+        run: |
+          kubectl create namespace "$NS"
+          kubectl label namespace "$NS" pod-security.kubernetes.io/enforce=restricted
+          helm install fv "$CHART" -n "$NS" -f "$CHART/ci/default-values.yaml" \
+            --set 'extraEnv[0].name=FILEVET_SYNC_MAX_BYTES' --set-string 'extraEnv[0].value=8' \
+            --wait --timeout 10m
+      - name: Scan a benign PDF through the API and the queue
+        run: |
+          kubectl -n "$NS" exec deploy/fv-filevet-api -- python -I -c '
+          import json, time, urllib.request as u
+          H = {"Authorization": "Bearer 12345"}
+          base = "http://localhost:8000/v1/scans"
+          req = u.Request(base + "?name=benign.pdf", data=b"%PDF-1.4\n%%EOF\n", headers=H, method="POST")
+          scan = json.load(u.urlopen(req))
+          assert scan["status"] == "queued", scan
+          for _ in range(60):
+              done = json.load(u.urlopen(u.Request(base + "/" + scan["id"], headers=H)))
+              if done["status"] == "done":
+                  break
+              time.sleep(1)
+          assert done["status"] == "done", done
+          assert done["report"]["verdict"] == "pass", done["report"]["verdict"]
+          '
+      - name: Check that worker egress is blocked
+        run: |
+          kubectl -n "$NS" exec deploy/fv-filevet-worker -- python -I -c '
+          import socket
+          def reachable(host, port):
+              try:
+                  socket.create_connection((host, port), timeout=3).close()
+              except OSError:
+                  return False
+              return True
+          assert reachable("fv-filevet-redis", 6379)
+          for host, port in [("1.1.1.1", 443), ("10.96.0.1", 443), ("fv-filevet-api", 8000)]:
+              assert not reachable(host, port), f"{host}:{port} is reachable"
+          '
+      - name: Show pod state on failure
+        if: failure()
+        run: |
+          kubectl -n "$NS" get pods -o wide
+          kubectl -n "$NS" get events --sort-by=.lastTimestamp | tail -30

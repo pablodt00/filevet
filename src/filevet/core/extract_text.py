@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal
 from xml.etree.ElementTree import Element
 
+from filevet.core.errors import ZIP_ERRORS
 from filevet.core.extract_finance import _children, _xml, decode, local
 from filevet.core.finding import Location
 from filevet.core.pdf import Box, Page, Pdf, Text
@@ -37,7 +38,7 @@ def runs(data: bytes, detected_type: str, budget: int) -> list[Run]:
         try:
             with zipfile.ZipFile(io.BytesIO(data)) as zf:
                 found = _ooxml(zf, budget)
-        except (zipfile.BadZipFile, OSError, EOFError):
+        except ZIP_ERRORS:
             found = []
     elif detected_type in {"text", "xml", "html"}:
         found = [Run(decode(data))]

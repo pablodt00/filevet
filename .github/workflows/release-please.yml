@@ -39,7 +39,9 @@ jobs:
     steps:
       - name: Publish the new release
         if: needs.release-please.outputs.release_created == 'true'
-        run: gh workflow run publish.yml --ref "$TAG" -f tag="$TAG"
+        run: |
+          gh workflow run publish.yml --ref "$TAG" -f tag="$TAG"
+          gh workflow run docs.yml --ref "$TAG" -f tag="$TAG"
       - name: Run CI on the release PR
         if: needs.release-please.outputs.pr_branch != ''
         run: |

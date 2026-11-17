@@ -26,6 +26,10 @@ The project is pre-1.0. Parts of the layout below are still planned. Check what 
 | Run the CLI on a sample | `mkdir -p tmp-samples && printf '%%PDF-1.4\n%%%%EOF\n' > tmp-samples/benign.pdf && uv run filevet scan tmp-samples/benign.pdf` |
 | AI test run for one scenario | `/ai-test <scenario-id>`, or the runner alone: `uv run python -I ai-tests/run.py --scenario <id> --plan <plan.json>` (see [ai-tests/README.md](ai-tests/README.md)) |
 | Tests that need ClamAV | `uv run pytest -m requires_clamav` (skipped unless `clamd` is reachable, see below) |
+| Sandbox escape tests | `uv run pytest -m "requires_nsjail or requires_gvisor"` (skipped unless `nsjail` or `runsc` is on `PATH`) |
+| Benchmarks | `uv run pytest benchmarks` |
+| Fuzz one target | `make corpus`, then `UV_PROJECT_ENVIRONMENT=.venv-fuzz uv run --python 3.11 --with atheris==2.3.0 python -I fuzz/fuzz.py <target> -max_total_time=60 -artifact_prefix=tmp-samples/fuzz/crashes/ tmp-samples/fuzz/<target> tmp-samples/corpus` (see [docs/fuzzing.md](docs/fuzzing.md)) |
+| Docs site | `uv run --group docs mkdocs build --strict` |
 
 ClamAV tests run only when `FILEVET_CLAMD` is set to the address of a running `clamd`, for example `unix:/run/clamav/clamd.sock` or `tcp:localhost:3310`. Without it they are skipped, so the suite needs no network and no ClamAV.
 
@@ -33,10 +37,11 @@ ClamAV tests run only when `FILEVET_CLAMD` is set to the address of a running `c
 
 ```
 src/filevet/
-  core/          contracts, pipeline, type detection, limits, report, PDF reader, text and financial extraction
+  core/          contracts, pipeline, sandbox backends, type detection, limits, report, PDF reader, text and financial extraction
   analyzers/     one subpackage per family: basic/, malware/, parser/, format/, integrity/, ai/
   interfaces/    CLI (cli.py), output formats, REST API (api.py) and async queue (jobs.py)
   policies/      verdict policy engine and the built-in default, strict and ai-ingestion policies
+  sanitize.py    filevet sanitize for PDF, CSV and XLSX
 tests/
   unit/          tests for single modules
   integration/   end-to-end scans
@@ -47,7 +52,10 @@ tests/
   fakes.py       misbehaving analyzers for pipeline tests
   helpers.py     builds an Artifact from a generated sample for analyzer unit tests
 ai-tests/        AI test scenarios, runner and metrics
-docs/            scope, architecture, threat model, ADRs
+benchmarks/      pytest-benchmark cases, compared against master in CI
+fuzz/            Atheris harness, one target per format plus the pipeline
+charts/filevet/  Helm chart (API, workers, Redis, optional ClamAV)
+docs/            scope, architecture, security model, threat model, ADRs, the MkDocs site
 ```
 
 Three contracts, all in `src/filevet/core/`. Analyzers depend only on these and never on each other.
@@ -78,6 +86,7 @@ Use `/new-analyzer <family.name> <file-types>`. By hand:
 - Type hints on every function. mypy runs in strict mode on `filevet.core.*`.
 - Ruff with line length 100. Ruff's `S` (bandit) rules are on. Don't silence them without a reason in the same line.
 - No new runtime dependency without an ADR in `docs/adr/` (or an update to the relevant one) and a license on the allow list in `.github/workflows/security.yml`. Dev dependencies go in `[dependency-groups] dev`.
+- Analyzer state lives in plain attributes that serialize to JSON, because the `nsjail` and `gvisor` sandboxes rebuild the analyzer from its class and attributes.
 - An analyzer must never crash the pipeline. Catch errors inside `analyze()` and return a finding that says the file couldn't be parsed. If an analyzer still fails or times out, the pipeline records `pipeline.analyzer_error`.
 - Logs hold hashes, rule IDs and timings only, never file contents.
 

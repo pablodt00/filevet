@@ -2,13 +2,12 @@ import re
 from collections import Counter
 from datetime import UTC, datetime, timedelta, timezone
 from difflib import SequenceMatcher
-from xml.etree.ElementTree import ParseError
 
-from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult
 from filevet.core.artifact import Artifact
+from filevet.core.errors import XML_ERRORS
 from filevet.core.extract_finance import AMOUNT, DATE, IBAN, mask
 from filevet.core.finding import Finding, Location, Severity
 from filevet.core.pdf import Box, Page, Pdf, Text, is_type, lines, name, refs
@@ -218,7 +217,7 @@ def _xmp_producer(data: bytes) -> str | None:
         return None
     try:
         root = fromstring(data, forbid_dtd=True)
-    except (ParseError, DefusedXmlException):
+    except XML_ERRORS:
         return None
     for element in root.iter():
         for key, value in element.attrib.items():

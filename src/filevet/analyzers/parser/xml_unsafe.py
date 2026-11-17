@@ -1,12 +1,11 @@
 import io
 import re
-from xml.etree.ElementTree import ParseError
 
-from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import iterparse
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult
 from filevet.core.artifact import Artifact
+from filevet.core.errors import XML_ERRORS
 from filevet.core.finding import Finding, Location, Severity
 from filevet.core.identify import iso20022_message
 
@@ -74,7 +73,7 @@ def _parse(data: bytes) -> list[Finding]:
                 return [_finding("Deep nesting", why, Severity.MEDIUM, element.tag)]
             if event == "end":
                 element.clear()
-    except (ParseError, DefusedXmlException) as exc:
+    except XML_ERRORS as exc:
         return [
             Finding(
                 rule_id="parser.malformed",

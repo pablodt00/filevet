@@ -1,0 +1,66 @@
+site_name: filevet
+site_description: Self-hosted scanner that checks financial files for security risks before anyone opens them
+site_url: https://pablodt00.github.io/filevet/
+repo_url: https://github.com/pablodt00/filevet
+repo_name: pablodt00/filevet
+edit_uri: edit/master/docs/
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+
+extra:
+  version:
+    provider: mike
+
+hooks:
+  - scripts/mkdocs_hooks.py
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Concepts:
+      - Pipeline and findings: architecture.md
+      - Policies: policies.md
+      - Isolation: security-model.md
+      - Integrity checks: integrity.md
+  - Rule reference: rules/index.md
+  - Policy cookbook: cookbook.md
+  - Integrations: integrations.md
+  - REST API: api.md
+  - Kubernetes: kubernetes.md
+  - Sanitizing files: sanitize.md
+  - Writing an analyzer plugin: plugins.md
+  - Security:
+      - Security model: security-model.md
+      - Threat model: threat-model.md
+      - Fuzzing: fuzzing.md
+      - Privacy: privacy.md
+  - Operations:
+      - Capacity planning: capacity.md
+      - API stability: stability.md
+  - Scope: SCOPE.md
+  - FAQ: faq.md
+  - Decisions: adr/index.md
+  - Changelog: changelog.md
+
+not_in_nav: |
+  rules/*.md
+  adr/0*.md

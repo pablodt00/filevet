@@ -1,0 +1,57 @@
+name: Benchmarks
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  bench:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --frozen
+      - name: Restore the master baseline
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        with:
+          path: .benchmarks
+          key: bench-master-${{ github.event.pull_request.base.sha }}
+          restore-keys: bench-master-
+      - name: Compare with master
+        if: github.event_name == 'pull_request'
+        run: |
+          if compgen -G ".benchmarks/*/*.json" > /dev/null; then
+            uv run pytest benchmarks --benchmark-compare --benchmark-compare-fail=min:20% --benchmark-json=bench.json
+          else
+            echo "No master baseline yet, recording only."
+            uv run pytest benchmarks --benchmark-json=bench.json
+          fi
+      - name: Record the master baseline
+        if: github.event_name != 'pull_request'
+        run: |
+          rm -rf .benchmarks
+          uv run pytest benchmarks --benchmark-save=master --benchmark-json=bench.json
+      - uses: actions/cache/save@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+        if: github.event_name != 'pull_request'
+        with:
+          path: .benchmarks
+          key: bench-master-${{ github.sha }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: benchmarks
+          path: bench.json

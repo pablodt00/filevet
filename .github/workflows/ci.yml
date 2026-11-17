@@ -65,6 +65,57 @@ jobs:
             coverage.xml
             junit.xml
 
+  sandbox:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      NSJAIL_COMMIT: f78475530b46d0186111a9096b30725f816b55fe # 3.6
+      GVISOR_RELEASE: "20261026.0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Build nsjail
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends autoconf bison flex libtool pkg-config libprotobuf-dev protobuf-compiler libnl-route-3-dev
+          git init "$RUNNER_TEMP/nsjail"
+          cd "$RUNNER_TEMP/nsjail"
+          git fetch --depth 1 https://github.com/google/nsjail "$NSJAIL_COMMIT"
+          git checkout FETCH_HEAD
+          git submodule update --init --depth 1
+          make -j"$(nproc)"
+          sudo install nsjail /usr/local/bin/
+      - name: Install gVisor
+        run: |
+          base="https://storage.googleapis.com/gvisor/releases/release/${GVISOR_RELEASE}/x86_64"
+          cd "$RUNNER_TEMP"
+          curl -fsSLO "$base/gvisor.tar.zstd" -O "$base/gvisor.tar.zstd.sha512"
+          sha512sum -c gvisor.tar.zstd.sha512
+          sudo tar --zstd -xf gvisor.tar.zstd -C /usr/local/bin
+      - run: uv sync --frozen
+      - name: Escape tests
+        run: uv run pytest -m "requires_nsjail or requires_gvisor" -rs tests/unit/test_sandbox.py
+      - name: Show the nsjail log
+        if: failure()
+        run: |
+          uv run python -I - <<'EOF'
+          import subprocess, sys, tempfile
+          from pathlib import Path
+          from filevet.core.limits import Limits
+          from filevet.core.sandbox import NsjailSandbox
+          with tempfile.TemporaryDirectory() as tmp:
+              argv = NsjailSandbox().argv("/usr/local/bin/nsjail", Path(tmp), Path("/dev/null"), Limits())
+              argv.remove("--really_quiet")
+              argv = [*argv[: argv.index("--")], "-v", "--", sys.executable, "-I", "-c", "print('jail ok')"]
+              sys.exit(subprocess.run(argv, check=False).returncode)
+          EOF
+
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20

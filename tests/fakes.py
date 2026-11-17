@@ -1,6 +1,8 @@
 import os
+import socket
 import time
 import zipfile
+from pathlib import Path
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult, ExtractedFile
 from filevet.core.artifact import Artifact
@@ -82,3 +84,63 @@ class Unzips(Fake):
                 if info.file_size <= ctx.limits.max_input_bytes
             ]
         return AnalyzerResult(children=children)
+
+
+class Attempt(Fake):
+    def attempt(self, artifact: Artifact) -> bool:
+        raise NotImplementedError
+
+    def analyze(self, artifact: Artifact, ctx: AnalysisContext) -> AnalyzerResult:
+        try:
+            escaped = self.attempt(artifact)
+        except OSError:
+            escaped = False
+        rule_id = "test.escaped" if escaped else "test.blocked"
+        return AnalyzerResult(findings=[Finding(rule_id=rule_id, title=self.name, severity="info")])
+
+
+class OpensSocket(Attempt):
+    def __init__(self, port: int) -> None:
+        super().__init__("test.socket")
+        self.port = port
+
+    def attempt(self, artifact: Artifact) -> bool:
+        socket.create_connection(("127.0.0.1", self.port), timeout=1).close()
+        return True
+
+
+class ReadsHostFile(Attempt):
+    def __init__(self) -> None:
+        super().__init__("test.read_host")
+
+    def attempt(self, artifact: Artifact) -> bool:
+        return bool(Path("/etc/passwd").read_bytes())
+
+
+class WritesOutside(Attempt):
+    def __init__(self, target: str) -> None:
+        super().__init__("test.write_outside")
+        self.target = target
+
+    def attempt(self, artifact: Artifact) -> bool:
+        Path(self.target).write_bytes(b"x")
+        return True
+
+
+class ForkBomb(Attempt):
+    def __init__(self, attempts: int) -> None:
+        super().__init__("test.fork_bomb")
+        self.attempts = attempts
+
+    def attempt(self, artifact: Artifact) -> bool:
+        forked = 0
+        for _ in range(self.attempts):
+            try:
+                pid = os.fork()
+            except OSError:
+                break
+            if pid == 0:
+                time.sleep(2)
+                os._exit(0)
+            forked += 1
+        return forked >= self.attempts

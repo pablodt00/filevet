@@ -44,6 +44,7 @@ The design behind it is in [docs/architecture.md](docs/architecture.md).
    - Each finding needs a stable, namespaced `rule_id`, a severity, a location and evidence. Evidence is truncated and escaped, never the raw payload.
    - Never let an exception escape. If the file can't be parsed, return a finding that says so.
    - Never execute, render or open the file with an external program, and never use the network.
+   - Keep state in plain attributes that serialize to JSON. The `nsjail` and `gvisor` sandboxes rebuild the analyzer from its class and attributes ([security model](docs/security-model.md)).
 
 4. Register it as an entry point in `pyproject.toml`:
 

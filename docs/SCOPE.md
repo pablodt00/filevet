@@ -38,7 +38,7 @@ PDF, CSV, XLSX, ISO 20022 XML (camt.05x, pain.001, pain.008), and ZIP archives c
 
 - v0.2: document tampering and financial data integrity.
 - v0.3: hidden content aimed at AI or LLM pipelines.
-- v1.x: sanitized output.
+- v1.0: a stronger sandbox, fuzzing, a Helm chart, sanitized output for PDF, CSV and XLSX, and a stable API.
 
 ## Out of scope
 

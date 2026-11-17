@@ -3,6 +3,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-yaml
+        exclude: ^(mkdocs\.yml|charts/[^/]+/templates/.*)$
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: detect-private-key

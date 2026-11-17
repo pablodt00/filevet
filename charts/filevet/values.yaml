@@ -1,0 +1,115 @@
+image:
+  repository: ghcr.io/pablodt00/filevet
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+policy: default
+retentionSeconds: 3600
+
+# Comma-separated SHA-256 hashes of the API keys (see docs/api.md).
+apiKeys: ""
+# Fernet key for queued uploads. Generated on first install and kept on upgrades when empty.
+spoolKey: ""
+webhook:
+  # HMAC secret for signed webhooks. Webhooks are off while it's empty.
+  secret: ""
+  # Hosts the worker may POST results to. Each one also needs an egress rule in networkPolicy.extraEgress.
+  hosts: []
+# Secret with the keys FILEVET_API_KEYS, FILEVET_SPOOL_KEY and optionally FILEVET_WEBHOOK_SECRET.
+# When set, apiKeys, spoolKey and webhook.secret are ignored.
+existingSecret: ""
+
+# Extra environment variables for the API and the worker, e.g. FILEVET_SYNC_MAX_BYTES.
+extraEnv: []
+
+tmpSizeLimit: 1Gi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+api:
+  replicas: 2
+  # Sandbox backend for scans the API runs in the request: subprocess, nsjail or gvisor.
+  sandbox: subprocess
+  runtimeClassName: ""
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 2Gi}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+worker:
+  replicas: 2
+  sandbox: subprocess
+  # Set to a RuntimeClass such as gvisor to run workers in a gVisor sandbox.
+  runtimeClassName: ""
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {cpu: "2", memory: 3Gi}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  keda:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 10
+    # Queued scans per worker replica.
+    listLength: 5
+
+redis:
+  # Deploy a small Redis without persistence. Set to false and fill externalUrl to use your own.
+  enabled: true
+  externalUrl: ""
+  image:
+    repository: redis
+    tag: 8-alpine
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 2Gi}
+
+clamav:
+  enabled: false
+  image:
+    repository: clamav/clamav
+    tag: stable
+  databaseSizeLimit: 2Gi
+  resources:
+    requests: {cpu: 250m, memory: 2Gi}
+    limits: {cpu: "2", memory: 4Gi}
+  freshclam:
+    resources:
+      requests: {cpu: 50m, memory: 256Mi}
+      limits: {cpu: 500m, memory: 1Gi}
+
+networkPolicy:
+  enabled: true
+  # Namespaces and pods allowed to reach the API, as NetworkPolicy peers. Empty allows any.
+  apiFrom: []
+  # Egress for clamav's freshclam updates, as NetworkPolicy rules.
+  clamavEgress:
+    - ports:
+        - {port: 443, protocol: TCP}
+  # Extra worker egress rules, e.g. to webhook hosts.
+  extraEgress: []
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}

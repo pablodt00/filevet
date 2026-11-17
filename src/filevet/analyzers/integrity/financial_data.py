@@ -1,3 +1,4 @@
+import csv
 import io
 import re
 import zipfile
@@ -5,13 +6,13 @@ from collections import Counter
 from collections.abc import Iterable
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from xml.etree.ElementTree import Element, ParseError
+from xml.etree.ElementTree import Element
 
-from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
 
 from filevet.core.analyzer import AnalysisContext, AnalyzerResult, Party
 from filevet.core.artifact import Artifact
+from filevet.core.errors import XML_ERRORS, ZIP_ERRORS
 from filevet.core.extract_finance import (
     IBAN_LENGTHS,
     Found,
@@ -61,7 +62,7 @@ class FinancialData:
         data = artifact.read(ctx.limits.max_input_bytes)
         try:
             findings = _check(artifact.detected_type, data, ctx)
-        except (ValueError, IndexError, KeyError, OverflowError, RecursionError) as exc:
+        except (ValueError, IndexError, KeyError, OverflowError, RecursionError, csv.Error) as exc:
             findings = [
                 Finding(
                     rule_id="parser.malformed",
@@ -85,7 +86,7 @@ def _check(kind: str, data: bytes, ctx: AnalysisContext) -> list[Finding]:
                 if "xl/workbook.xml" not in zf.namelist():
                     return []
                 sheets = read_xlsx(zf, ctx.limits.max_input_bytes)
-        except (zipfile.BadZipFile, OSError, EOFError):
+        except ZIP_ERRORS:
             return []
         return [f for sheet, rows in sheets.items() for f in _table(rows, sheet, ctx)]
     if kind == "pdf":
@@ -287,7 +288,7 @@ def _impossible_dates(cells: Iterable[tuple[Location, str]]) -> list[Finding]:
 def _xml(data: bytes, ctx: AnalysisContext) -> list[Finding]:
     try:
         root = fromstring(data, forbid_dtd=True)
-    except (ParseError, DefusedXmlException):
+    except XML_ERRORS:
         return []
     message = iso20022_message(root.tag)
     if message is None:

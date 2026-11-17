@@ -18,6 +18,7 @@ MANIFEST
 
 # Virtual environments
 .venv/
+.venv-fuzz/
 venv/
 env/
 
@@ -30,6 +31,7 @@ env/
 # Tests and coverage
 .pytest_cache/
 .hypothesis/
+.benchmarks/
 .coverage
 .coverage.*
 coverage.xml

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: filevet
+description: Self-hosted scanner that checks financial files for security risks before they are opened or ingested
+type: application
+version: 0.4.0
+appVersion: "0.4.0"
+home: https://github.com/pablodt00/filevet
+sources:
+  - https://github.com/pablodt00/filevet
+annotations:
+  artifacthub.io/license: Apache-2.0
+keywords: [security, scanner, malware, pdf]
