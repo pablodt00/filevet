@@ -179,7 +179,7 @@ def test_escape_attempts_are_blocked(
     assert "test.escaped" not in rule_ids
     assert not target.exists()
     if attempt == "ok":
-        assert rule_ids == {"test.ran"}
+        assert rule_ids == {"test.ran"}, [run.error for run in report.analyzer_runs]
     elif attempt == "memory":
         assert rule_ids == {"pipeline.analyzer_error"}
     else:

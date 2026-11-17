@@ -101,6 +101,20 @@ jobs:
       - run: uv sync --frozen
       - name: Escape tests
         run: uv run pytest -m "requires_nsjail or requires_gvisor" -rs tests/unit/test_sandbox.py
+      - name: Show the nsjail log
+        if: failure()
+        run: |
+          uv run python -I - <<'EOF'
+          import subprocess, sys, tempfile
+          from pathlib import Path
+          from filevet.core.limits import Limits
+          from filevet.core.sandbox import NsjailSandbox
+          with tempfile.TemporaryDirectory() as tmp:
+              argv = NsjailSandbox().argv("/usr/local/bin/nsjail", Path(tmp), Path("/dev/null"), Limits())
+              argv.remove("--really_quiet")
+              argv = [*argv[: argv.index("--")], "--", sys.executable, "-I", "-c", "print('jail ok')"]
+              sys.exit(subprocess.run(argv, check=False).returncode)
+          EOF
 
   docker-build:
     runs-on: ubuntu-latest
